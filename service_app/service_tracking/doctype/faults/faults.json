@@ -1,0 +1,32 @@
+{
+ "actions": [],
+ "creation": "2026-03-11 01:41:37.194905",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-03-11 01:41:37.194905",
+ "modified_by": "njohn@sfgroup.co.tz",
+ "module": "Service Tracking",
+ "name": "Faults",
+ "owner": "njohn@sfgroup.co.tz",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
