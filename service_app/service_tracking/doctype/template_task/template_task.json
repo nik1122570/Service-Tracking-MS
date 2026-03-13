@@ -1,30 +1,29 @@
 {
  "actions": [],
- "creation": "2026-03-11 01:41:05.596629",
+ "creation": "2026-03-13 16:53:37.995520",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "description"
+  "task_name"
  ],
  "fields": [
   {
-   "bold": 1,
-   "fieldname": "description",
-   "fieldtype": "Data",
+   "fieldname": "task_name",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Description",
-   "reqd": 1
+   "label": "Task Name",
+   "options": "Service Task"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-03-13 16:17:46.872158",
+ "modified": "2026-03-13 16:53:37.995520",
  "modified_by": "Administrator",
  "module": "Service Tracking",
- "name": "Complains",
- "owner": "njohn@sfgroup.co.tz",
+ "name": "Template Task",
+ "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",
  "sort_field": "modified",

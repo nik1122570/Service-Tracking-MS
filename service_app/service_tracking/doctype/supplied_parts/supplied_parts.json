@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:30:20.914015",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "item_name",
+  "qty",
+  "rate",
+  "useful_life",
+  "has_warranty",
+  "warranty_period__in_months"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "item.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Qty",
+   "reqd": 1
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "useful_life",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Useful Life",
+   "reqd": 1
+  },
+  {
+   "default": "Yes",
+   "fieldname": "has_warranty",
+   "fieldtype": "Select",
+   "label": "Has Warranty",
+   "options": "Yes\nNo",
+   "reqd": 1
+  },
+  {
+   "fieldname": "warranty_period__in_months",
+   "fieldtype": "Int",
+   "label": "Warranty Period ( In months)"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-03-13 15:44:05.779829",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Supplied Parts",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
