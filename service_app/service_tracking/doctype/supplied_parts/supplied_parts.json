@@ -10,6 +10,7 @@
   "item_name",
   "qty",
   "rate",
+  "po_status",
   "useful_life",
   "has_warranty",
   "warranty_period__in_months"
@@ -43,6 +44,13 @@
    "in_list_view": 1,
    "label": "Rate",
    "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "po_status",
+   "fieldtype": "Select",
+   "label": "PO Status",
+   "options": "Pending\nOrdered"
   },
   {
    "fieldname": "useful_life",

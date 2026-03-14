@@ -1,282 +1,123 @@
 import frappe
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 
 
 class EAHJobCard(Document):
+	def validate(self):
+		self.calculate_totals()
 
-    def validate(self):
-        self.ensure_required_fields()
-        self.ensure_supplied_parts_data()
+	def calculate_totals(self):
+		# Helpers to ensure numeric calculations (fields may be passed as strings)
+		def _num(value):
+			try:
+				return float(value) if value not in (None, "") else 0.0
+			except Exception:
+				return 0.0
 
-    def ensure_required_fields(self):
+		# Total quantity of supplied parts (custom field)
+		custom_total_qty = sum([_num(row.qty) for row in (self.get("supplied_parts") or [])])
 
-        if not self.vehicle:
-            frappe.throw("Vehicle is required.")
+		# Calculate spares cost from Supplied Parts
+		spares_cost = sum([
+			_num(row.rate) * _num(row.qty)
+			for row in (self.get("supplied_parts") or [])
+		])
 
-        if not self.service_date:
-            frappe.throw("Service Date is required.")
+		# Calculate service charges from Service Task Templates (rate field)
+		service_charges = sum([_num(row.rate) for row in (self.get("service_task_templates") or [])])
 
-        if not self.supplier:
-            frappe.throw("Supplier is required.")
-
-        if not self.project:
-            frappe.throw("Project is required.")
-
-        if not self.driver_name:
-            frappe.throw("Driver Name is required.")
-
-
-    def ensure_supplied_parts_data(self):
-        """
-        Ensure supplied parts contain the required maintenance tracking data
-        """
-
-        for part in self.supplied_parts:
-
-            if not part.item:
-                frappe.throw("Item is required in Supplied Parts.")
-
-            if not part.qty:
-                frappe.throw(f"Quantity is required for item {part.item}")
-
-            if not part.useful_life:
-                frappe.throw(f"Useful Life must be defined for item {part.item}")
-
-            if not part.has_warranty:
-                frappe.throw(f"Warranty selection required for item {part.item}")
-
-            if part.has_warranty == "Yes" and not part.warranty_period__in_months:
-                frappe.throw(
-                    f"Warranty period must be defined for item {part.item}"
-                )
-
-            # auto-fetch item name if missing
-            if part.item and not part.item_name:
-                part.item_name = frappe.db.get_value(
-                    "Item", part.item, "item_name"
-                )
+		# Set fields
+		self.custom_total_qty = custom_total_qty
+		self.spares_cost = spares_cost
+		self.service_charges = service_charges
+		self.total_vat_exclusive = spares_cost + service_charges
 
 
-    def on_submit(self):
-        """
-        Confirm that maintenance record including spare parts was stored
-        """
+@frappe.whitelist()
+def make_purchase_order(source_name, target_doc=None):
 
-        parts_summary = ""
+	def set_missing_values(source, target):
+		target.supplier = source.supplier
+		target.custom_job_card_link = source.name  # Link PO → Job Card
 
-        for part in self.supplied_parts:
-            parts_summary += f"""
-            • {part.item_name or part.item}
-            | Useful Life: {part.useful_life}
-            | Warranty: {part.has_warranty}
-            """
+	doc = get_mapped_doc(
+		"EAH Job Card",
+		source_name,
+		{
+			"EAH Job Card": {
+				"doctype": "Purchase Order"
+			},
+			"Supplied Parts": {
+				"doctype": "Purchase Order Item",
+				"field_map": {
+					"item": "item_code",
+					"item_name": "item_name",
+					"qty": "qty",
+					"rate": "rate"
+				}
+			},
+		},
+		target_doc,
+		set_missing_values
+	)
 
-        frappe.msgprint(
-            f"""
-            <b>Maintenance History Recorded Successfully</b><br><br>
-
-            Vehicle: <b>{self.vehicle}</b><br>
-            Service Date: {self.service_date}<br>
-            Supplier: {self.supplier}<br>
-            Driver: {self.driver_name}<br><br>
-
-            <b>Supplied Parts Recorded:</b><br>
-            {parts_summary}
-            """,
-            title="Maintenance Recorded",
-            indicator="green"
-        )
-        
-import frappe
-from frappe.model.document import Document
-from frappe.utils import add_months, today, getdate
+	return doc
 
 
-class EAHJobCard(Document):
+@frappe.whitelist()
+def make_material_request(source_name, target_doc=None):
+	doc = get_mapped_doc(
+		"EAH Job Card",
+		source_name,
+		{
+			"EAH Job Card": {
+				"doctype": "Material Request",
+				"field_map": {
+					"name": "eah_job_card"
+				}
+			},
+			"Supplied Parts": {
+				"doctype": "Material Request Item",
+				"field_map": {
+					"item": "item_code",
+					"item_name": "item_name",
+					"qty": "qty"
+				},
+			},
+		},
+		target_doc
+	)
 
-    def validate(self):
-        warnings = []
-        warnings += self.check_recent_vehicle_service()
-        warnings += self.check_part_warranty()
-        warnings += self.check_useful_life()
+	doc.material_request_type = "Purchase"
 
-        if warnings:
-            frappe.msgprint(
-                "<br>".join(warnings),
-                title="Maintenance Warning",
-                indicator="orange"
-            )
-
-
-    def before_submit(self):
-
-        errors = []
-        errors += self.check_recent_vehicle_service()
-        errors += self.check_part_warranty()
-        errors += self.check_useful_life()
-
-        # If there are control issues
-        if errors:
-
-            # If override NOT checked → block submission
-            if not self.custom_override_controls:
-
-                frappe.throw(
-                    "<b>Submission Blocked.</b><br><br>"
-                    "Maintenance controls detected the following issues:<br><br>"
-                    + "<br>".join(errors) +
-                    "<br><br>Please check <b>'Override Controls'</b> to allow submission.",
-                    title="Maintenance Control"
-                )
-
-            # If override checked → allow but warn
-            else:
-
-                frappe.msgprint(
-                    "<b>Controls Overridden by Management</b><br><br>"
-                    + "<br>".join(errors),
-                    title="Override Applied",
-                    indicator="orange"
-                )
+	return doc
 
 
-    def check_recent_vehicle_service(self):
-        warnings = []
-
-        last_service = frappe.get_all(
-            "EAH Job Card",
-            filters={
-                "vehicle": self.vehicle,
-                "docstatus": 1,
-                "name": ["!=", self.name]
-            },
-            fields=["service_date"],
-            order_by="service_date desc",
-            limit=1
-        )
-
-        if last_service:
-            warnings.append(
-                f"⚠ Vehicle was recently serviced on {last_service[0].service_date}"
-            )
-
-        return warnings
-
-
-    def check_part_warranty(self):
-        warnings = []
-
-        for part in self.supplied_parts:
-
-            previous_parts = frappe.get_all(
-                "Supplied Parts",
-                filters={
-                    "item": part.item,
-                    "parenttype": "EAH Job Card"
-                },
-                fields=["parent", "warranty_period__in_months"]
-            )
-
-            for prev in previous_parts:
-
-                job_card = frappe.get_doc("EAH Job Card", prev.parent)
-
-                if prev.warranty_period__in_months:
-
-                    expiry = add_months(
-                        job_card.service_date,
-                        prev.warranty_period__in_months
-                    )
-
-                    if getdate(today()) <= getdate(expiry):
-
-                        warnings.append(
-                            f"⚠ Part {part.item} may still be under warranty until {expiry}"
-                        )
-
-        return warnings
-
-
-    def check_useful_life(self):
-        warnings = []
-
-        for part in self.supplied_parts:
-
-            previous_parts = frappe.get_all(
-                "Supplied Parts",
-                filters={
-                    "item": part.item,
-                    "parenttype": "EAH Job Card"
-                },
-                fields=["parent", "useful_life"]
-            )
-
-            for prev in previous_parts:
-
-                job_card = frappe.get_doc("EAH Job Card", prev.parent)
-
-                expiry = add_months(
-                    job_card.service_date,
-                    prev.useful_life
-                )
-
-                if getdate(today()) <= getdate(expiry):
-
-                    warnings.append(
-                        f"⚠ Part {part.item} may still be within useful life until {expiry}"
-                    )
-
-        return warnings
-
-
-    def on_submit(self):
-        frappe.msgprint(
-            f"""
-            <b>Maintenance Record Stored Successfully</b><br><br>
-            Vehicle: {self.vehicle}<br>
-            Service Date: {self.service_date}<br>
-            Supplier: {self.supplier}
-            """,
-            title="Maintenance Recorded",
-            indicator="green"
-        )
-        
 @frappe.whitelist()
 def get_vehicle_maintenance_history(vehicle):
+	if not vehicle:
+		return []
 
-    if not vehicle:
-        return []
+	# Fetch recent Job Cards for this vehicle
+	job_cards = frappe.get_all(
+		"EAH Job Card",
+		filters={"vehicle": vehicle},
+		fields=["name", "service_date", "supplier", "driver_name"],
+		order_by="service_date desc"
+	)
 
-    job_cards = frappe.get_all(
-        "EAH Job Card",
-        filters={"vehicle": vehicle, "docstatus": 1},
-        fields=[
-            "name",
-            "service_date",
-            "supplier",
-            "driver_name",
-            "project",
-            "odometer_reading"
-        ],
-        order_by="service_date desc"
-    )
+	# Include the selected service templates for each job card
+	for jc in job_cards:
+		templates = frappe.get_all(
+			"Job Card Template",
+			filters={
+				"parent": jc.name,
+				"parentfield": "service_task_templates"
+			},
+			pluck="service_template"
+		)
+		jc["service_templates"] = templates
 
-    history = []
+	return job_cards
 
-    for jc in job_cards:
-
-        parts = frappe.get_all(
-            "Supplied Parts",
-            filters={"parent": jc.name},
-            fields=["item_name", "qty"]
-        )
-
-        parts_list = []
-        for p in parts:
-            parts_list.append(f"{p.item_name} (Qty: {p.qty})")
-
-        jc["parts_used"] = ", ".join(parts_list)
-
-        history.append(jc)
-
-    return history

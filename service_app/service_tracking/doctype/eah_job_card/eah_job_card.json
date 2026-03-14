@@ -26,7 +26,8 @@
   "service_task_templates",
   "service_charges",
   "spares_cost",
-  "total_vat_exclusive"
+  "total_vat_exclusive",
+  "custom_purchase_order"
  ],
  "fields": [
   {
@@ -158,6 +159,13 @@
    "fieldname": "total_vat_exclusive",
    "fieldtype": "Currency",
    "label": "Total VAT Exclusive"
+  },
+  {
+   "fieldname": "custom_purchase_order",
+   "fieldtype": "Link",
+   "label": "Purchase Order",
+   "options": "Purchase Order",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
