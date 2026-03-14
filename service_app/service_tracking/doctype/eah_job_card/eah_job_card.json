@@ -1,0 +1,193 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-11 01:30:29.960973",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "vehicle",
+  "odometer_reading",
+  "service_date",
+  "supplier",
+  "project",
+  "column_break_6dth",
+  "naming_series",
+  "workshop",
+  "section_break_6yw0",
+  "driver_name",
+  "column_break_mbat",
+  "driver_mobile_number",
+  "amended_from",
+  "section_break_wyl0",
+  "complains",
+  "faults",
+  "supplied_parts",
+  "service_task_templates",
+  "service_charges",
+  "spares_cost",
+  "total_vat_exclusive"
+ ],
+ "fields": [
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Vehicle",
+   "options": "Vehicle",
+   "reqd": 1
+  },
+  {
+   "fieldname": "odometer_reading",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Odometer Reading",
+   "reqd": 1
+  },
+  {
+   "fieldname": "service_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Service Date",
+   "options": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Supplier",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_6dth",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "JOB CARD-.YY.-.######",
+   "reqd": 1
+  },
+  {
+   "fieldname": "workshop",
+   "fieldtype": "Data",
+   "label": "Workshop"
+  },
+  {
+   "fieldname": "section_break_6yw0",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "driver_name",
+   "fieldtype": "Data",
+   "label": "Driver Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_mbat",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "driver_mobile_number",
+   "fieldtype": "Data",
+   "label": "Driver Mobile Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "EAH Job Card",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_wyl0",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "complains",
+   "fieldtype": "Table",
+   "label": "Complains",
+   "options": "Complains",
+   "reqd": 1
+  },
+  {
+   "fieldname": "faults",
+   "fieldtype": "Table",
+   "label": "Faults",
+   "options": "Faults",
+   "reqd": 1
+  },
+  {
+   "fieldname": "supplied_parts",
+   "fieldtype": "Table",
+   "label": "Supplied Parts",
+   "options": "Supplied Parts"
+  },
+  {
+   "fieldname": "service_task_templates",
+   "fieldtype": "Table",
+   "label": "Service Task Templates",
+   "options": "Job Card Template",
+   "reqd": 1
+  },
+  {
+   "fieldname": "service_charges",
+   "fieldtype": "Currency",
+   "label": "Service Charges"
+  },
+  {
+   "fieldname": "spares_cost",
+   "fieldtype": "Currency",
+   "label": "Spares Cost"
+  },
+  {
+   "fieldname": "total_vat_exclusive",
+   "fieldtype": "Currency",
+   "label": "Total VAT Exclusive"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-03-13 22:30:58.028531",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "EAH Job Card",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "njohn@sfgroup.co.tz",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
