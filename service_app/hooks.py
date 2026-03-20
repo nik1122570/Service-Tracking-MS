@@ -43,7 +43,9 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+	"Purchase Order": "public/js/purchase_order.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -83,7 +85,7 @@ app_license = "mit"
 # ------------
 
 # before_install = "service_app.install.before_install"
-# after_install = "service_app.install.after_install"
+# after_install = "service_app.service_tracking.workspace.create_fleet_maintenance_dashboard"
 
 # Uninstallation
 # ------------
@@ -137,13 +139,11 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Purchase Order": {
+		"validate": "service_app.service_tracking.purchase_order.validate_purchase_order_source_integrity"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -246,4 +246,5 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
 

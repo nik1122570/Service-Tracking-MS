@@ -14,6 +14,7 @@
   "column_break_6dth",
   "naming_series",
   "workshop",
+    "price_list",
   "section_break_6yw0",
   "driver_name",
   "column_break_mbat",
@@ -27,7 +28,7 @@
   "service_charges",
   "spares_cost",
   "total_vat_exclusive",
-  "custom_purchase_order"
+  "custom_override_controls"
  ],
  "fields": [
   {
@@ -83,6 +84,13 @@
    "fieldname": "workshop",
    "fieldtype": "Data",
    "label": "Workshop"
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List",
+   "reqd": 1
   },
   {
    "fieldname": "section_break_6yw0",
@@ -161,11 +169,9 @@
    "label": "Total VAT Exclusive"
   },
   {
-   "fieldname": "custom_purchase_order",
-   "fieldtype": "Link",
-   "label": "Purchase Order",
-   "options": "Purchase Order",
-   "read_only": 1
+   "fieldname": "custom_override_controls",
+   "fieldtype": "Check",
+   "label": "Override Controls"
   }
  ],
  "grid_page_length": 50,
@@ -197,5 +203,6 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "client_script": ""
 }

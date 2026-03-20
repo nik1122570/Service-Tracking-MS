@@ -1,0 +1,128 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-20 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "source_request_item",
+  "wheel_position",
+  "item",
+  "item_name",
+  "tyre_brand",
+  "worn_out_brand",
+  "worn_out_serial_no",
+  "qty_expected",
+  "qty_received",
+  "uom",
+  "condition",
+  "disposition",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "source_request_item",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Source Request Item",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "wheel_position",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Wheel Position",
+   "options": "Maintenance Postion",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tyre_brand",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tyre Brand",
+   "read_only": 1
+  },
+  {
+   "fieldname": "worn_out_brand",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Worn Out Brand",
+   "read_only": 1
+  },
+  {
+   "fieldname": "worn_out_serial_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Worn Out Serial No",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qty_expected",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Qty Expected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "qty_received",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Qty Received",
+   "reqd": 1
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "UOM",
+   "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "condition",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Condition",
+   "options": "Scrap\nRetreadable\nWarranty Return\nMissing"
+  },
+  {
+   "default": "Held in Scrap Store",
+   "fieldname": "disposition",
+   "fieldtype": "Select",
+   "label": "Disposition",
+   "options": "Held in Scrap Store\nPending Disposal\nSent to Supplier\nSent for Retreading"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "module": "Service Tracking",
+ "name": "Tyre Receiving Note Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

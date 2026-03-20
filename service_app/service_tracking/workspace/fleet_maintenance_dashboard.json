@@ -1,0 +1,89 @@
+{
+ "doctype": "Workspace",
+ "name": "fleet-maintenance-dashboard",
+ "label": "Fleet Maintenance Dashboard",
+ "category": "Modules",
+ "is_hidden": 0,
+ "sort_order": 0,
+ "icon": "icon-dashboard",
+ "color": "#5890ff",
+ "roles": [
+  {
+   "role": "Workshop Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "number_cards": [
+  {
+   "label": "Total Vehicles Serviced This Month",
+   "method": "service_app.service_tracking.number_cards.get_total_vehicles_serviced_this_month"
+  },
+  {
+   "label": "Total Maintenance Cost",
+   "method": "service_app.service_tracking.number_cards.get_total_maintenance_cost"
+  },
+  {
+   "label": "Total Spare Parts Used",
+   "method": "service_app.service_tracking.number_cards.get_total_spare_parts_used"
+  },
+  {
+   "label": "Total Job Cards Created This Month",
+   "method": "service_app.service_tracking.number_cards.get_total_job_cards_this_month"
+  }
+ ],
+ "charts": [
+  {
+   "label": "Maintenance Cost by Vehicle",
+   "chart_name": "Maintenance Cost by Vehicle",
+   "chart_type": "Group By",
+   "document_type": "EAH Job Card",
+   "group_by_type": "Sum",
+   "group_by_based_on": "vehicle",
+   "aggregate_function_based_on": "total_vat_exclusive"
+  },
+  {
+   "label": "Monthly Maintenance Trend",
+   "chart_name": "Monthly Maintenance Trend",
+   "chart_type": "Line",
+   "document_type": "EAH Job Card",
+   "based_on": "service_date",
+   "time_interval": "Monthly",
+   "timeseries": 1
+  },
+  {
+   "label": "Spare Parts Consumption by Item",
+   "chart_name": "Spare Parts Consumption by Item",
+   "chart_type": "Bar",
+   "method": "service_app.service_tracking.charts.get_spare_parts_consumption"
+  }
+ ],
+ "shortcuts": [
+  {
+   "label": "EAH Job Card",
+   "link_to": "EAH Job Card",
+   "type": "DocType"
+  },
+  {
+   "label": "Service Template",
+   "link_to": "Service Tempelate",
+   "type": "DocType"
+  },
+  {
+   "label": "Maintenance Position",
+   "link_to": "Maintenance Postion",
+   "type": "DocType"
+  },
+  {
+   "label": "Spare Parts Change History Report",
+   "link_to": "Spare Parts Change History Report",
+   "type": "Report"
+  },
+  {
+   "label": "Vehicle Maintenance History Report",
+   "link_to": "Vehicle Maintenance History Report",
+   "type": "Report"
+  }
+ ]
+}
