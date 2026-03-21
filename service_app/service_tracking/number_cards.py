@@ -207,6 +207,29 @@ def _get_total_purchased_tyre_qty():
     return flt(result)
 
 
+def _get_submitted_tyre_cost(from_date=None, to_date=None, fieldname="total"):
+    conditions = [
+        "docstatus = 1",
+        "COALESCE(custom_tyre_request_link, '') != ''",
+    ]
+    values = []
+
+    if from_date and to_date:
+        conditions.append("transaction_date BETWEEN %s AND %s")
+        values.extend([from_date, to_date])
+
+    total = frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM({fieldname}), 0)
+        FROM `tabPurchase Order`
+        WHERE {' AND '.join(conditions)}
+        """,
+        values,
+    )[0][0] or 0
+
+    return flt(total)
+
+
 @frappe.whitelist()
 def get_tyre_requests_this_month(filters=None):
     from_date, to_date = _get_current_month_date_range()
@@ -256,3 +279,15 @@ def get_total_disposed_tyres(filters=None):
 def get_total_outstanding_receiving_tyres(filters=None):
     outstanding_qty = sum(flt(row.get("outstanding_qty")) for row in get_outstanding_tyre_return_rows({}))
     return _build_number_card_response(int(outstanding_qty))
+
+
+@frappe.whitelist()
+def get_total_tyre_cost_this_month(filters=None):
+    from_date, to_date = _get_current_month_date_range()
+    return _build_currency_number_card_response(_get_submitted_tyre_cost(from_date, to_date))
+
+
+@frappe.whitelist()
+def get_total_tyre_cost_this_quarter(filters=None):
+    from_date, to_date = _get_current_quarter_date_range_for_filters()
+    return _build_currency_number_card_response(_get_submitted_tyre_cost(from_date, to_date))

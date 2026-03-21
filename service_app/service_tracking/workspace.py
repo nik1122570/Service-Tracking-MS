@@ -70,6 +70,18 @@ MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
         "method": "service_app.service_tracking.number_cards.get_total_outstanding_receiving_tyres",
         "document_type": "Tyre Request",
     },
+    {
+        "label": "Total Tyre Cost This Month",
+        "method": "service_app.service_tracking.number_cards.get_total_tyre_cost_this_month",
+        "document_type": "Purchase Order",
+        "currency": True,
+    },
+    {
+        "label": "Total Tyre Cost This Quarter",
+        "method": "service_app.service_tracking.number_cards.get_total_tyre_cost_this_quarter",
+        "document_type": "Purchase Order",
+        "currency": True,
+    },
 )
 MAINTENANCE_CONTROL_CENTER_CHARTS = (
     {
@@ -86,6 +98,24 @@ MAINTENANCE_CONTROL_CENTER_CHARTS = (
         "color": "#F59E0B",
         "currency": True,
         "filters_json": [["EAH Job Card", "docstatus", "=", 1]],
+    },
+    {
+        "chart_name": "Monthly Tyre Cost Trend",
+        "label": "Monthly Tyre Cost Trend",
+        "chart_type": "Sum",
+        "document_type": "Purchase Order",
+        "based_on": "transaction_date",
+        "value_based_on": "total",
+        "timeseries": 1,
+        "timespan": "Last Year",
+        "time_interval": "Monthly",
+        "type": "Bar",
+        "color": "#B45309",
+        "currency": True,
+        "filters_json": [
+            ["Purchase Order", "docstatus", "=", 1],
+            ["Purchase Order", "custom_tyre_request_link", "!=", ""]
+        ],
     },
 )
 

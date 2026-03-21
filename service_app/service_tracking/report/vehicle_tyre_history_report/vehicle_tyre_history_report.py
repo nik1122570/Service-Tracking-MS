@@ -8,9 +8,12 @@ import frappe
 from frappe import _
 from frappe.utils import date_diff, flt, getdate
 
+from service_app.service_tracking.tyre_analytics import set_default_date_filters
+
 
 def execute(filters=None):
     filters = frappe._dict(filters or {})
+    set_default_date_filters(filters)
     validate_filters(filters)
 
     columns = get_columns()

@@ -357,6 +357,7 @@ def get_tyre_disposal_rows(filters=None, ignore_date_filters=False):
             request.project,
             request.cost_center,
             disposal_item.name AS disposal_item_name,
+            disposal_item.source_receiving_item,
             disposal_item.wheel_position,
             disposal_item.item,
             disposal_item.item_name,
@@ -517,6 +518,8 @@ def get_tyre_scrap_aging_rows(filters=None):
     receipt_rows = get_tyre_receiving_rows(filters, ignore_date_filters=True)
     disposal_rows = get_tyre_disposal_rows(filters, ignore_date_filters=True)
     disposed_qty_by_receipt_item = defaultdict(float)
+    from_date = getdate(filters.from_date) if filters.get("from_date") else None
+    to_date = getdate(filters.to_date) if filters.get("to_date") else None
 
     for row in disposal_rows:
         if row.get("source_receiving_item"):
@@ -524,17 +527,23 @@ def get_tyre_scrap_aging_rows(filters=None):
 
     data = []
     for row in receipt_rows:
+        received_date = getdate(row.received_date)
+        if from_date and received_date < from_date:
+            continue
+        if to_date and received_date > to_date:
+            continue
+
         receipt_item_name = row.receiving_item_name
         balance_qty = flt(row.qty_received) - flt(disposed_qty_by_receipt_item.get(receipt_item_name))
         if balance_qty <= 0:
             continue
 
-        age_days = max(date_diff(today(), getdate(row.received_date)), 0)
+        age_days = max(date_diff(today(), received_date), 0)
         data.append(
             {
                 "tyre_receiving_note": row.tyre_receiving_note,
                 "tyre_request": row.tyre_request,
-                "received_date": row.received_date,
+                "received_date": received_date,
                 "vehicle": row.vehicle,
                 "license_plate": row.license_plate,
                 "supplier": row.supplier,
