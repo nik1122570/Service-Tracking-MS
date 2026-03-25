@@ -1,0 +1,72 @@
+{
+ "actions": [],
+ "creation": "2026-03-22 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "allocation_label",
+  "trip_route",
+  "allocated_amount",
+  "allocation_status",
+  "linked_trip_simulation",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "allocation_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Allocation Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trip_route",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Trip Route",
+   "options": "Trip Route"
+  },
+  {
+   "fieldname": "allocated_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Allocated Amount",
+   "reqd": 1
+  },
+  {
+   "default": "Available",
+   "fieldname": "allocation_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Available\nAllocated",
+   "read_only": 1
+  },
+  {
+   "fieldname": "linked_trip_simulation",
+   "fieldtype": "Link",
+   "label": "Linked Trip Simulation",
+   "options": "Trip Simulation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "module": "Service Tracking",
+ "name": "Sales Order Trip Revenue Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

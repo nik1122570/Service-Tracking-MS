@@ -142,6 +142,9 @@ doctype_js = {
 doc_events = {
 	"Purchase Order": {
 		"validate": "service_app.service_tracking.purchase_order.validate_purchase_order_source_integrity"
+	},
+	"Sales Order": {
+		"validate": "service_app.service_tracking.sales_order.validate_sales_order_trip_revenue_allocations"
 	}
 }
 

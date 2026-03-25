@@ -88,6 +88,60 @@ def _get_submitted_maintenance_cost(from_date=None, to_date=None, fieldname="tot
     return flt(total)
 
 
+def _get_submitted_purchase_invoice_maintenance_cost(from_date=None, to_date=None):
+    conditions = [
+        "pi.docstatus = 1",
+        "pii.parenttype = 'Purchase Invoice'",
+        "COALESCE(pii.purchase_order, '') != ''",
+        "COALESCE(po.custom_job_card_link, '') != ''",
+    ]
+    values = {}
+
+    if from_date and to_date:
+        conditions.append("pi.posting_date BETWEEN %(from_date)s AND %(to_date)s")
+        values.update({"from_date": from_date, "to_date": to_date})
+
+    total = frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM(pii.base_net_amount), 0)
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
+        WHERE {' AND '.join(conditions)}
+        """,
+        values,
+    )[0][0] or 0
+
+    return flt(total)
+
+
+def _get_submitted_purchase_invoice_spare_cost():
+    total = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(pii.base_net_amount), 0)
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
+        INNER JOIN `tabEAH Job Card` jc
+            ON jc.name = po.custom_job_card_link
+        WHERE pi.docstatus = 1
+          AND pii.parenttype = 'Purchase Invoice'
+          AND COALESCE(pii.purchase_order, '') != ''
+          AND COALESCE(po.custom_job_card_link, '') != ''
+          AND (
+                COALESCE(jc.custom_default_labour_item, '') = ''
+                OR pii.item_code != jc.custom_default_labour_item
+          )
+        """
+    )[0][0] or 0
+
+    return flt(total)
+
+
 def _build_number_card_response(value, fieldtype="Int", options=None):
     response = {
         "value": value,
@@ -108,7 +162,7 @@ def _build_currency_number_card_response(value):
 def get_total_maintenance_cost_this_month(filters=None):
     from_date, to_date = _get_current_month_date_range()
     return _build_currency_number_card_response(
-        _get_submitted_maintenance_cost(from_date, to_date)
+        _get_submitted_purchase_invoice_maintenance_cost(from_date, to_date)
     )
 
 
@@ -116,7 +170,7 @@ def get_total_maintenance_cost_this_month(filters=None):
 def get_total_maintenance_cost_this_quarter(filters=None):
     from_date, to_date = _get_current_quarter_date_range()
     return _build_currency_number_card_response(
-        _get_submitted_maintenance_cost(from_date, to_date)
+        _get_submitted_purchase_invoice_maintenance_cost(from_date, to_date)
     )
 
 
@@ -156,7 +210,7 @@ def get_most_appearing_vehicle(filters=None):
 @frappe.whitelist()
 def get_total_spare_cost(filters=None):
     return _build_currency_number_card_response(
-        _get_submitted_maintenance_cost(fieldname="spares_cost")
+        _get_submitted_purchase_invoice_spare_cost()
     )
 
 

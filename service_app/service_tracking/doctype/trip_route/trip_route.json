@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:route_name",
+ "creation": "2026-03-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "route_name",
+  "starting_point",
+  "ending_point",
+  "column_break_header",
+  "is_round_trip",
+  "standard_trip_days",
+  "section_break_steps",
+  "route_steps",
+  "section_break_totals",
+  "total_distance_km",
+  "total_fuel_consumption_qty_ltr",
+  "section_break_expenses",
+  "fixed_expenses",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "route_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Route Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "starting_point",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Starting Point",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ending_point",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ending Point",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_round_trip",
+   "fieldtype": "Check",
+   "label": "Is Round Trip"
+  },
+  {
+   "fieldname": "standard_trip_days",
+   "fieldtype": "Float",
+   "label": "Standard Trip Days",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_steps",
+   "fieldtype": "Section Break",
+   "label": "Route Steps"
+  },
+  {
+   "fieldname": "route_steps",
+   "fieldtype": "Table",
+   "label": "Route Steps",
+   "options": "Trip Route Step",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_totals",
+   "fieldtype": "Section Break",
+   "label": "Route Totals"
+  },
+  {
+   "fieldname": "total_distance_km",
+   "fieldtype": "Float",
+   "label": "Total Distance (km)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_fuel_consumption_qty_ltr",
+   "fieldtype": "Float",
+   "label": "Total Fuel Consumption Qty (Ltr)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_expenses",
+   "fieldtype": "Section Break",
+   "label": "Fixed Expenses"
+  },
+  {
+   "fieldname": "fixed_expenses",
+   "fieldtype": "Table",
+   "label": "Fixed Expenses",
+   "options": "Trip Route Expense"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "module": "Service Tracking",
+ "name": "Trip Route",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

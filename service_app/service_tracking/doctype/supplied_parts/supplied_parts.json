@@ -87,7 +87,7 @@
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "UOM",
-   "options": "Item",
+   "options": "UOM",
    "read_only": 1
   }
  ],

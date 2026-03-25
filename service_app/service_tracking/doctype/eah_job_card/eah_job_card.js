@@ -1,10 +1,12 @@
 frappe.ui.form.on("EAH Job Card", {
 	setup(frm) {
+		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
 		calculate_totals(frm);
 	},
 
 	refresh(frm) {
+		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
 		sync_supplied_parts_price_list(frm, {
 			fetch_rates: true,
@@ -145,6 +147,18 @@ frappe.ui.form.on("Job Card Template", {
 		calculate_totals(frm);
 	}
 });
+
+function set_supplied_parts_item_queries(frm) {
+	if (!frm.fields_dict.supplied_parts || !frm.fields_dict.supplied_parts.grid) {
+		return;
+	}
+
+	frm.fields_dict.supplied_parts.grid.get_field("item").get_query = () => ({
+		filters: {
+			item_group: "Spare Parts"
+		}
+	});
+}
 
 function set_supplied_parts_field_state(frm) {
 	if (frm.fields_dict.supplied_parts && frm.fields_dict.supplied_parts.grid) {

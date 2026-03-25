@@ -1,0 +1,328 @@
+.maintenance-intelligence-page {
+	--mi-bg: linear-gradient(135deg, rgba(126, 58, 0, 0.08), rgba(27, 39, 53, 0.04) 52%, rgba(217, 119, 6, 0.1));
+	--mi-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 238, 0.94));
+	--mi-border: rgba(120, 113, 108, 0.16);
+	--mi-ink: #1f2937;
+	--mi-muted: #5b6472;
+	--mi-accent: #b45309;
+	--mi-accent-soft: rgba(180, 83, 9, 0.12);
+	--mi-critical: #b42318;
+	--mi-positive: #067647;
+	--mi-warning: #b54708;
+	--mi-neutral: #344054;
+	display: grid;
+	gap: 1.5rem;
+	padding: 1.25rem 0 2rem;
+}
+
+.maintenance-intelligence-page .mi-hero,
+.maintenance-intelligence-page .mi-panel,
+.maintenance-intelligence-page .mi-summary-card {
+	border: 1px solid var(--mi-border);
+	border-radius: 22px;
+	box-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
+}
+
+.maintenance-intelligence-page .mi-hero {
+	background: var(--mi-bg);
+	display: grid;
+	gap: 1.25rem;
+	grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.95fr);
+	padding: 1.6rem;
+	position: relative;
+	overflow: hidden;
+}
+
+.maintenance-intelligence-page .mi-hero::after {
+	background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.22), transparent 48%);
+	content: "";
+	inset: 0;
+	pointer-events: none;
+	position: absolute;
+}
+
+.maintenance-intelligence-page .mi-hero-copy,
+.maintenance-intelligence-page .mi-hero-metrics {
+	position: relative;
+	z-index: 1;
+}
+
+.maintenance-intelligence-page .mi-eyebrow {
+	color: var(--mi-accent);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	margin: 0 0 0.55rem;
+	text-transform: uppercase;
+}
+
+.maintenance-intelligence-page .mi-title {
+	color: var(--mi-ink);
+	font-size: clamp(1.45rem, 2.8vw, 2.45rem);
+	line-height: 1.08;
+	margin: 0;
+	max-width: 16ch;
+}
+
+.maintenance-intelligence-page .mi-subtitle {
+	color: var(--mi-muted);
+	font-size: 0.98rem;
+	line-height: 1.65;
+	margin: 0.9rem 0 0;
+	max-width: 68ch;
+}
+
+.maintenance-intelligence-page .mi-hero-metrics {
+	align-content: start;
+	display: grid;
+	gap: 0.9rem;
+}
+
+.maintenance-intelligence-page .mi-hero-pill {
+	background: rgba(255, 255, 255, 0.72);
+	border: 1px solid rgba(180, 83, 9, 0.12);
+	border-radius: 18px;
+	padding: 1rem 1.05rem;
+}
+
+.maintenance-intelligence-page .mi-hero-label {
+	color: var(--mi-muted);
+	display: block;
+	font-size: 0.74rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	margin-bottom: 0.35rem;
+	text-transform: uppercase;
+}
+
+.maintenance-intelligence-page .mi-hero-value {
+	color: var(--mi-ink);
+	display: block;
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+.maintenance-intelligence-page .mi-section {
+	display: grid;
+	gap: 1rem;
+}
+
+.maintenance-intelligence-page .mi-section-heading {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem 1rem;
+	justify-content: space-between;
+}
+
+.maintenance-intelligence-page .mi-section-heading h2,
+.maintenance-intelligence-page .mi-panel-header h3 {
+	color: var(--mi-ink);
+	margin: 0;
+}
+
+.maintenance-intelligence-page .mi-section-heading p,
+.maintenance-intelligence-page .mi-panel-header p {
+	color: var(--mi-muted);
+	margin: 0;
+}
+
+.maintenance-intelligence-page .mi-kpi-grid,
+.maintenance-intelligence-page .mi-chart-grid,
+.maintenance-intelligence-page .mi-insight-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.maintenance-intelligence-page .mi-kpi-grid {
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.maintenance-intelligence-page .mi-summary-card {
+	background: var(--mi-panel-bg);
+	cursor: default;
+	display: grid;
+	gap: 0.8rem;
+	padding: 1rem 1.05rem 1.1rem;
+	position: relative;
+	transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.maintenance-intelligence-page .mi-summary-card.is-clickable {
+	cursor: pointer;
+}
+
+.maintenance-intelligence-page .mi-summary-card.is-clickable:hover {
+	box-shadow: 0 20px 36px rgba(15, 23, 42, 0.1);
+	transform: translateY(-2px);
+}
+
+.maintenance-intelligence-page .mi-summary-card::before {
+	background: linear-gradient(90deg, var(--mi-accent), transparent);
+	border-radius: 999px;
+	content: "";
+	height: 4px;
+	left: 1rem;
+	position: absolute;
+	right: 1rem;
+	top: 0.9rem;
+}
+
+.maintenance-intelligence-page .mi-summary-card[data-tone="critical"] {
+	--mi-accent: var(--mi-critical);
+}
+
+.maintenance-intelligence-page .mi-summary-card[data-tone="warning"] {
+	--mi-accent: var(--mi-warning);
+}
+
+.maintenance-intelligence-page .mi-summary-card[data-tone="positive"] {
+	--mi-accent: var(--mi-positive);
+}
+
+.maintenance-intelligence-page .mi-summary-card[data-tone="neutral"] {
+	--mi-accent: var(--mi-neutral);
+}
+
+.maintenance-intelligence-page .mi-card-label {
+	color: var(--mi-muted);
+	font-size: 0.84rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	margin-top: 0.45rem;
+}
+
+.maintenance-intelligence-page .mi-card-value {
+	color: var(--mi-ink);
+	font-size: 1.72rem;
+	font-weight: 800;
+	letter-spacing: -0.04em;
+	line-height: 1.05;
+}
+
+.maintenance-intelligence-page .mi-card-trend {
+	color: var(--mi-accent);
+	font-size: 0.84rem;
+	font-weight: 700;
+}
+
+.maintenance-intelligence-page .mi-card-note {
+	color: var(--mi-muted);
+	font-size: 0.85rem;
+	line-height: 1.45;
+}
+
+.maintenance-intelligence-page .mi-chart-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.maintenance-intelligence-page .mi-panel {
+	background: var(--mi-panel-bg);
+	display: grid;
+	gap: 0.9rem;
+	padding: 1rem 1rem 0.8rem;
+}
+
+.maintenance-intelligence-page .mi-chart {
+	min-height: 320px;
+}
+
+.maintenance-intelligence-page .mi-insight-grid {
+	grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+}
+
+.maintenance-intelligence-page .mi-insights,
+.maintenance-intelligence-page .mi-watchlist {
+	display: grid;
+	gap: 0.8rem;
+}
+
+.maintenance-intelligence-page .mi-insight-item,
+.maintenance-intelligence-page .mi-watchlist-row,
+.maintenance-intelligence-page .mi-empty-state {
+	background: rgba(255, 255, 255, 0.82);
+	border: 1px solid rgba(120, 113, 108, 0.12);
+	border-radius: 16px;
+	padding: 0.95rem 1rem;
+}
+
+.maintenance-intelligence-page .mi-insight-item[data-tone="critical"],
+.maintenance-intelligence-page .mi-watchlist-row[data-tone="critical"] {
+	border-color: rgba(180, 35, 24, 0.28);
+}
+
+.maintenance-intelligence-page .mi-insight-item[data-tone="warning"],
+.maintenance-intelligence-page .mi-watchlist-row[data-tone="warning"] {
+	border-color: rgba(181, 71, 8, 0.28);
+}
+
+.maintenance-intelligence-page .mi-insight-item[data-tone="positive"],
+.maintenance-intelligence-page .mi-watchlist-row[data-tone="positive"] {
+	border-color: rgba(6, 118, 71, 0.28);
+}
+
+.maintenance-intelligence-page .mi-insight-title,
+.maintenance-intelligence-page .mi-watchlist-title {
+	color: var(--mi-ink);
+	font-size: 0.98rem;
+	font-weight: 700;
+	margin: 0 0 0.3rem;
+}
+
+.maintenance-intelligence-page .mi-insight-body,
+.maintenance-intelligence-page .mi-watchlist-meta,
+.maintenance-intelligence-page .mi-empty-state {
+	color: var(--mi-muted);
+	font-size: 0.88rem;
+	line-height: 1.55;
+}
+
+.maintenance-intelligence-page .mi-watchlist-row {
+	cursor: pointer;
+	display: grid;
+	gap: 0.35rem;
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.maintenance-intelligence-page .mi-watchlist-row:hover {
+	box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+	transform: translateY(-2px);
+}
+
+.maintenance-intelligence-page .mi-watchlist-tag {
+	background: var(--mi-accent-soft);
+	border-radius: 999px;
+	color: var(--mi-accent);
+	display: inline-flex;
+	font-size: 0.72rem;
+	font-weight: 700;
+	padding: 0.18rem 0.55rem;
+	width: fit-content;
+}
+
+.maintenance-intelligence-page .mi-empty-state {
+	border-style: dashed;
+	text-align: center;
+}
+
+@media (max-width: 1100px) {
+	.maintenance-intelligence-page .mi-chart-grid,
+	.maintenance-intelligence-page .mi-insight-grid,
+	.maintenance-intelligence-page .mi-hero {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 768px) {
+	.maintenance-intelligence-page {
+		padding-top: 0.8rem;
+	}
+
+	.maintenance-intelligence-page .mi-title {
+		max-width: none;
+	}
+
+	.maintenance-intelligence-page .mi-chart {
+		min-height: 260px;
+	}
+}

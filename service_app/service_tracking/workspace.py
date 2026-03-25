@@ -5,18 +5,19 @@ import frappe
 
 
 MAINTENANCE_CONTROL_CENTER = "Maintenance Control Center"
+MAINTENANCE_INTELLIGENCE_PAGE = "maintenance-intelligence"
 DEFAULT_CURRENCY = lambda: frappe.db.get_single_value("Global Defaults", "default_currency")
 MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
     {
         "label": "Total Maintenance Cost This Month",
         "method": "service_app.service_tracking.number_cards.get_total_maintenance_cost_this_month",
-        "document_type": "EAH Job Card",
+        "document_type": "Purchase Invoice",
         "currency": True,
     },
     {
         "label": "Total Maintenance Cost This Quarter",
         "method": "service_app.service_tracking.number_cards.get_total_maintenance_cost_this_quarter",
-        "document_type": "EAH Job Card",
+        "document_type": "Purchase Invoice",
         "currency": True,
     },
     {
@@ -37,7 +38,7 @@ MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
     {
         "label": "Total Spare Cost",
         "method": "service_app.service_tracking.number_cards.get_total_spare_cost",
-        "document_type": "EAH Job Card",
+        "document_type": "Purchase Invoice",
         "currency": True,
     },
     {
@@ -116,6 +117,15 @@ MAINTENANCE_CONTROL_CENTER_CHARTS = (
             ["Purchase Order", "docstatus", "=", 1],
             ["Purchase Order", "custom_tyre_request_link", "!=", ""]
         ],
+    },
+)
+MAINTENANCE_CONTROL_CENTER_SHORTCUTS = (
+    {
+        "label": "Open Maintenance Intelligence",
+        "type": "Page",
+        "link_to": MAINTENANCE_INTELLIGENCE_PAGE,
+        "color": "#B45309",
+        "icon": "es-line-chart",
     },
 )
 
@@ -259,6 +269,83 @@ def _ensure_workspace_chart(workspace, chart_name, label):
     )
 
 
+def _ensure_workspace_shortcut(workspace, config):
+    existing_row = next(
+        (
+            row for row in workspace.shortcuts
+            if row.label == config["label"]
+            or (row.type == config.get("type") and row.link_to == config.get("link_to"))
+        ),
+        None,
+    )
+
+    if existing_row:
+        existing_row.label = config["label"]
+        existing_row.type = config.get("type")
+        existing_row.link_to = config.get("link_to")
+        existing_row.color = config.get("color")
+        existing_row.icon = config.get("icon")
+        return
+
+    workspace.append(
+        "shortcuts",
+        {
+            "label": config["label"],
+            "type": config.get("type"),
+            "link_to": config.get("link_to"),
+            "color": config.get("color"),
+            "icon": config.get("icon"),
+        },
+    )
+
+
+def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
+    if not workspace.content:
+        return
+
+    try:
+        content = json.loads(workspace.content)
+    except Exception:
+        return
+
+    existing_block = next(
+        (
+            block for block in content
+            if block.get("type") == "shortcut"
+            and (block.get("data") or {}).get("shortcut_name") == shortcut_label
+        ),
+        None,
+    )
+    if existing_block:
+        existing_block.setdefault("data", {})
+        existing_block["data"]["shortcut_name"] = shortcut_label
+        existing_block["data"]["col"] = existing_block["data"].get("col") or col
+        workspace.content = json.dumps(content, separators=(",", ":"))
+        workspace.flags.workspace_content_updated = True
+        return
+
+    shortcut_block = {
+        "id": frappe.generate_hash(length=10),
+        "type": "shortcut",
+        "data": {
+            "shortcut_name": shortcut_label,
+            "col": col,
+        },
+    }
+
+    insert_at = next(
+        (
+            index for index, block in enumerate(content)
+            if block.get("type") == "header"
+            and "Reports" in str((block.get("data") or {}).get("text", ""))
+        ),
+        len(content),
+    )
+    content.insert(insert_at, shortcut_block)
+    workspace.content = json.dumps(content, separators=(",", ":"))
+    workspace.flags.workspace_content_updated = True
+
+
 @frappe.whitelist()
 def setup_maintenance_control_center_workspace(workspace_name=MAINTENANCE_CONTROL_CENTER):
     if not frappe.db.exists("Workspace", workspace_name):
@@ -274,8 +361,20 @@ def setup_maintenance_control_center_workspace(workspace_name=MAINTENANCE_CONTRO
         chart_name = _upsert_dashboard_chart(chart_config)
         _ensure_workspace_chart(workspace, chart_name, chart_config["label"])
 
+    for shortcut_config in MAINTENANCE_CONTROL_CENTER_SHORTCUTS:
+        _ensure_workspace_shortcut(workspace, shortcut_config)
+        _ensure_workspace_content_shortcut_block(workspace, shortcut_config["label"])
+
     workspace.flags.ignore_permissions = True
     workspace.save(ignore_permissions=True)
+    if getattr(workspace.flags, "workspace_content_updated", False):
+        frappe.db.set_value(
+            "Workspace",
+            workspace.name,
+            "content",
+            workspace.content,
+            update_modified=False,
+        )
     frappe.clear_cache()
     frappe.db.commit()
 
