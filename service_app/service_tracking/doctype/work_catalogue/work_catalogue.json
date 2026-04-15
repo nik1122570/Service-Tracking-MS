@@ -1,34 +1,47 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
- "autoname": "field:truck_position",
- "creation": "2026-03-14 12:31:05.044507",
+ "autoname": "field:work_definition",
+ "creation": "2026-04-12 02:54:46.112507",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "truck_position",
-  "postion_name"
+  "amended_from",
+  "work_definition",
+  "description"
  ],
  "fields": [
   {
-   "fieldname": "truck_position",
-   "fieldtype": "Int",
-   "label": "Truck Position",
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Work Catalogue",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "work_definition",
+   "fieldtype": "Data",
+   "label": "Work Definition",
    "unique": 1
   },
   {
-   "fieldname": "postion_name",
-   "fieldtype": "Data",
-   "label": "Postion Name"
+   "fieldname": "description",
+   "fieldtype": "Long Text",
+   "label": "Description"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-04-15 18:10:11.618474",
+ "modified": "2026-04-12 02:57:22.533760",
  "modified_by": "Administrator",
  "module": "Service Tracking",
- "name": "Maintenance Postion",
+ "name": "Work Catalogue",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
@@ -42,6 +55,7 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   }
  ],

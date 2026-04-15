@@ -261,21 +261,27 @@ def _get_total_purchased_tyre_qty():
     return flt(result)
 
 
-def _get_submitted_tyre_cost(from_date=None, to_date=None, fieldname="total"):
+def _get_submitted_purchase_invoice_tyre_cost(from_date=None, to_date=None):
     conditions = [
-        "docstatus = 1",
-        "COALESCE(custom_tyre_request_link, '') != ''",
+        "pi.docstatus = 1",
+        "pii.parenttype = 'Purchase Invoice'",
+        "COALESCE(pii.purchase_order, '') != ''",
+        "COALESCE(po.custom_tyre_request_link, '') != ''",
     ]
-    values = []
+    values = {}
 
     if from_date and to_date:
-        conditions.append("transaction_date BETWEEN %s AND %s")
-        values.extend([from_date, to_date])
+        conditions.append("pi.posting_date BETWEEN %(from_date)s AND %(to_date)s")
+        values.update({"from_date": from_date, "to_date": to_date})
 
     total = frappe.db.sql(
         f"""
-        SELECT COALESCE(SUM({fieldname}), 0)
-        FROM `tabPurchase Order`
+        SELECT COALESCE(SUM(pii.base_net_amount), 0)
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
         WHERE {' AND '.join(conditions)}
         """,
         values,
@@ -338,10 +344,14 @@ def get_total_outstanding_receiving_tyres(filters=None):
 @frappe.whitelist()
 def get_total_tyre_cost_this_month(filters=None):
     from_date, to_date = _get_current_month_date_range()
-    return _build_currency_number_card_response(_get_submitted_tyre_cost(from_date, to_date))
+    return _build_currency_number_card_response(
+        _get_submitted_purchase_invoice_tyre_cost(from_date, to_date)
+    )
 
 
 @frappe.whitelist()
 def get_total_tyre_cost_this_quarter(filters=None):
     from_date, to_date = _get_current_quarter_date_range_for_filters()
-    return _build_currency_number_card_response(_get_submitted_tyre_cost(from_date, to_date))
+    return _build_currency_number_card_response(
+        _get_submitted_purchase_invoice_tyre_cost(from_date, to_date)
+    )

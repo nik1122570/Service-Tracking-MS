@@ -1,35 +1,41 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
- "autoname": "field:truck_position",
- "creation": "2026-03-14 12:31:05.044507",
+ "creation": "2026-04-12 02:42:24.398727",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "truck_position",
-  "postion_name"
+  "operation_name",
+  "amended_from"
  ],
  "fields": [
   {
-   "fieldname": "truck_position",
-   "fieldtype": "Int",
-   "label": "Truck Position",
-   "unique": 1
+   "fieldname": "operation_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Operation Name",
+   "reqd": 1
   },
   {
-   "fieldname": "postion_name",
-   "fieldtype": "Data",
-   "label": "Postion Name"
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Operations Catalogue",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-04-15 18:10:11.618474",
+ "modified": "2026-04-12 02:45:04.338392",
  "modified_by": "Administrator",
  "module": "Service Tracking",
- "name": "Maintenance Postion",
- "naming_rule": "By fieldname",
+ "name": "Operations Catalogue",
  "owner": "Administrator",
  "permissions": [
   {
@@ -42,6 +48,7 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   }
  ],

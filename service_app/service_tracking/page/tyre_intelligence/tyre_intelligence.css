@@ -1,0 +1,372 @@
+.tyre-intelligence-page {
+	--ti-bg: linear-gradient(135deg, rgba(10, 37, 64, 0.12), rgba(255, 255, 255, 0.34) 38%, rgba(19, 170, 82, 0.1));
+	--ti-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 248, 252, 0.94));
+	--ti-border: rgba(71, 85, 105, 0.16);
+	--ti-ink: #10243a;
+	--ti-muted: #546277;
+	--ti-positive: #067647;
+	--ti-warning: #c2410c;
+	--ti-critical: #b42318;
+	--ti-neutral: #24445c;
+	display: grid;
+	gap: 1.5rem;
+	padding: 1.2rem 0 2rem;
+	position: relative;
+}
+
+.tyre-intelligence-page .ti-hero,
+.tyre-intelligence-page .ti-panel,
+.tyre-intelligence-page .ti-summary-card {
+	border: 1px solid var(--ti-border);
+	border-radius: 24px;
+	box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+
+.tyre-intelligence-page .ti-hero {
+	background: var(--ti-bg);
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.95fr);
+	gap: 1.25rem;
+	overflow: hidden;
+	padding: 1.55rem;
+	position: relative;
+}
+
+.tyre-intelligence-page .ti-aurora,
+.tyre-intelligence-page .ti-gridlines {
+	inset: 0;
+	pointer-events: none;
+	position: absolute;
+}
+
+.tyre-intelligence-page .ti-aurora {
+	filter: blur(12px);
+	opacity: 0.75;
+}
+
+.tyre-intelligence-page .ti-aurora-one {
+	animation: tiFloat 13s ease-in-out infinite;
+	background: radial-gradient(circle at 20% 20%, rgba(20, 184, 166, 0.22), transparent 40%);
+}
+
+.tyre-intelligence-page .ti-aurora-two {
+	animation: tiFloatAlt 16s ease-in-out infinite;
+	background: radial-gradient(circle at 78% 26%, rgba(249, 115, 22, 0.22), transparent 36%);
+}
+
+.tyre-intelligence-page .ti-gridlines {
+	background-image:
+		linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+	background-size: 32px 32px;
+	mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 72%);
+}
+
+.tyre-intelligence-page .ti-hero-copy,
+.tyre-intelligence-page .ti-hero-stack {
+	position: relative;
+	z-index: 1;
+}
+
+.tyre-intelligence-page .ti-eyebrow {
+	color: #0f766e;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.18em;
+	margin: 0 0 0.65rem;
+	text-transform: uppercase;
+}
+
+.tyre-intelligence-page .ti-title {
+	color: var(--ti-ink);
+	font-family: "Sora", "Aptos", sans-serif;
+	font-size: clamp(1.55rem, 3vw, 2.75rem);
+	letter-spacing: -0.05em;
+	line-height: 1.05;
+	margin: 0;
+	max-width: 14ch;
+}
+
+.tyre-intelligence-page .ti-subtitle {
+	color: var(--ti-muted);
+	font-size: 1rem;
+	line-height: 1.72;
+	margin: 0.95rem 0 0;
+	max-width: 70ch;
+}
+
+.tyre-intelligence-page .ti-hero-stack {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.tyre-intelligence-page .ti-hero-pill {
+	background: rgba(255, 255, 255, 0.72);
+	backdrop-filter: blur(10px);
+	border: 1px solid rgba(15, 118, 110, 0.12);
+	border-radius: 18px;
+	padding: 1rem 1.05rem;
+}
+
+.tyre-intelligence-page .ti-hero-label {
+	color: var(--ti-muted);
+	display: block;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	margin-bottom: 0.35rem;
+	text-transform: uppercase;
+}
+
+.tyre-intelligence-page .ti-hero-value {
+	color: var(--ti-ink);
+	display: block;
+	font-size: 0.98rem;
+	font-weight: 700;
+	line-height: 1.48;
+}
+
+.tyre-intelligence-page .ti-section {
+	display: grid;
+	gap: 1rem;
+}
+
+.tyre-intelligence-page .ti-section-heading {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem 1rem;
+	justify-content: space-between;
+}
+
+.tyre-intelligence-page .ti-section-heading h2,
+.tyre-intelligence-page .ti-panel-header h3 {
+	color: var(--ti-ink);
+	font-family: "Sora", "Aptos", sans-serif;
+	margin: 0;
+}
+
+.tyre-intelligence-page .ti-section-heading p,
+.tyre-intelligence-page .ti-panel-header p {
+	color: var(--ti-muted);
+	margin: 0;
+}
+
+.tyre-intelligence-page .ti-kpi-grid,
+.tyre-intelligence-page .ti-chart-grid,
+.tyre-intelligence-page .ti-board-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.tyre-intelligence-page .ti-kpi-grid {
+	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.tyre-intelligence-page .ti-summary-card {
+	background: var(--ti-panel-bg);
+	display: grid;
+	gap: 0.75rem;
+	padding: 1rem 1.05rem 1.1rem;
+	position: relative;
+	transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.tyre-intelligence-page .ti-summary-card::before {
+	background: linear-gradient(90deg, var(--ti-accent, #0f766e), transparent);
+	border-radius: 999px;
+	content: "";
+	height: 4px;
+	left: 1rem;
+	position: absolute;
+	right: 1rem;
+	top: 0.85rem;
+}
+
+.tyre-intelligence-page .ti-summary-card.is-clickable,
+.tyre-intelligence-page .ti-board-item.is-clickable {
+	cursor: pointer;
+}
+
+.tyre-intelligence-page .ti-summary-card.is-clickable:hover,
+.tyre-intelligence-page .ti-board-item.is-clickable:hover {
+	box-shadow: 0 24px 40px rgba(15, 23, 42, 0.11);
+	transform: translateY(-2px);
+}
+
+.tyre-intelligence-page [data-tone="positive"] {
+	--ti-accent: var(--ti-positive);
+}
+
+.tyre-intelligence-page [data-tone="warning"] {
+	--ti-accent: var(--ti-warning);
+}
+
+.tyre-intelligence-page [data-tone="critical"] {
+	--ti-accent: var(--ti-critical);
+}
+
+.tyre-intelligence-page [data-tone="neutral"] {
+	--ti-accent: var(--ti-neutral);
+}
+
+.tyre-intelligence-page .ti-card-label {
+	color: var(--ti-muted);
+	font-size: 0.83rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	margin-top: 0.45rem;
+}
+
+.tyre-intelligence-page .ti-card-value {
+	color: var(--ti-ink);
+	font-size: 1.7rem;
+	font-weight: 800;
+	letter-spacing: -0.05em;
+	line-height: 1.05;
+}
+
+.tyre-intelligence-page .ti-card-trend {
+	color: var(--ti-accent, var(--ti-neutral));
+	font-size: 0.84rem;
+	font-weight: 700;
+}
+
+.tyre-intelligence-page .ti-card-note,
+.tyre-intelligence-page .ti-board-note,
+.tyre-intelligence-page .ti-board-meta,
+.tyre-intelligence-page .ti-insight-body {
+	color: var(--ti-muted);
+	font-size: 0.88rem;
+	line-height: 1.55;
+}
+
+.tyre-intelligence-page .ti-chart-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tyre-intelligence-page .ti-board-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tyre-intelligence-page .ti-panel {
+	background: var(--ti-panel-bg);
+	display: grid;
+	gap: 0.9rem;
+	padding: 1rem 1rem 0.85rem;
+}
+
+.tyre-intelligence-page .ti-panel-header {
+	display: grid;
+	gap: 0.22rem;
+}
+
+.tyre-intelligence-page .ti-chart {
+	min-height: 320px;
+}
+
+.tyre-intelligence-page .ti-insights,
+.tyre-intelligence-page .ti-board {
+	display: grid;
+	gap: 0.8rem;
+}
+
+.tyre-intelligence-page .ti-insight-item,
+.tyre-intelligence-page .ti-board-item,
+.tyre-intelligence-page .ti-empty-state {
+	background: rgba(255, 255, 255, 0.84);
+	border: 1px solid rgba(71, 85, 105, 0.12);
+	border-radius: 16px;
+	padding: 0.95rem 1rem;
+}
+
+.tyre-intelligence-page .ti-insight-item[data-tone="critical"],
+.tyre-intelligence-page .ti-board-item[data-tone="critical"] {
+	border-color: rgba(180, 35, 24, 0.26);
+}
+
+.tyre-intelligence-page .ti-insight-item[data-tone="warning"],
+.tyre-intelligence-page .ti-board-item[data-tone="warning"] {
+	border-color: rgba(194, 65, 12, 0.26);
+}
+
+.tyre-intelligence-page .ti-insight-item[data-tone="positive"],
+.tyre-intelligence-page .ti-board-item[data-tone="positive"] {
+	border-color: rgba(6, 118, 71, 0.24);
+}
+
+.tyre-intelligence-page .ti-insight-title,
+.tyre-intelligence-page .ti-board-title,
+.tyre-intelligence-page .ti-board-headline {
+	color: var(--ti-ink);
+}
+
+.tyre-intelligence-page .ti-insight-title,
+.tyre-intelligence-page .ti-board-title {
+	font-size: 0.94rem;
+	font-weight: 800;
+	margin-bottom: 0.25rem;
+}
+
+.tyre-intelligence-page .ti-board-top {
+	align-items: start;
+	display: flex;
+	gap: 0.65rem;
+	justify-content: space-between;
+}
+
+.tyre-intelligence-page .ti-board-headline {
+	font-size: 1rem;
+	font-weight: 700;
+	margin-bottom: 0.2rem;
+}
+
+.tyre-intelligence-page .ti-board-badge {
+	background: rgba(15, 118, 110, 0.1);
+	border: 1px solid rgba(15, 118, 110, 0.14);
+	border-radius: 999px;
+	color: #0f766e;
+	font-size: 0.73rem;
+	font-weight: 800;
+	padding: 0.22rem 0.6rem;
+	white-space: nowrap;
+}
+
+.tyre-intelligence-page .ti-empty-state {
+	color: var(--ti-muted);
+}
+
+@keyframes tiFloat {
+	0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+	50% { transform: translate3d(2%, 4%, 0) scale(1.08); }
+}
+
+@keyframes tiFloatAlt {
+	0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+	50% { transform: translate3d(-3%, 2%, 0) scale(1.12); }
+}
+
+@media (max-width: 1100px) {
+	.tyre-intelligence-page .ti-hero,
+	.tyre-intelligence-page .ti-chart-grid,
+	.tyre-intelligence-page .ti-board-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 680px) {
+	.tyre-intelligence-page {
+		padding-top: 0.8rem;
+	}
+
+	.tyre-intelligence-page .ti-hero {
+		padding: 1.2rem;
+	}
+
+	.tyre-intelligence-page .ti-title {
+		max-width: none;
+	}
+
+	.tyre-intelligence-page .ti-kpi-grid {
+		grid-template-columns: 1fr;
+	}
+}

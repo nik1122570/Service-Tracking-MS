@@ -1,0 +1,125 @@
+<div class="tyre-intelligence-page">
+	<section class="ti-hero">
+		<div class="ti-aurora ti-aurora-one"></div>
+		<div class="ti-aurora ti-aurora-two"></div>
+		<div class="ti-gridlines"></div>
+		<div class="ti-hero-copy">
+			<p class="ti-eyebrow">Tyre Intelligence</p>
+			<h1 class="ti-title">A management cockpit for brand performance, project tyre pressure, and tyre ledger balance.</h1>
+			<p class="ti-subtitle">
+				Move from raw tyre changes into explainable signals: which brands are winning, which ones are under watch, which projects are consuming the most tyre activity, and where ledger balances are getting old.
+			</p>
+		</div>
+		<div class="ti-hero-stack">
+			<div class="ti-hero-pill">
+				<span class="ti-hero-label">Data Scope</span>
+				<strong class="ti-hero-value" data-ti-scope>Loading scope</strong>
+			</div>
+			<div class="ti-hero-pill">
+				<span class="ti-hero-label">Management Focus</span>
+				<strong class="ti-hero-value" data-ti-focus>Portfolio View</strong>
+			</div>
+			<div class="ti-hero-pill">
+				<span class="ti-hero-label">Last Refresh</span>
+				<strong class="ti-hero-value" data-ti-generated-at>Waiting for data</strong>
+			</div>
+		</div>
+	</section>
+
+	<section class="ti-section">
+		<div class="ti-section-heading">
+			<h2>Command Metrics</h2>
+			<p>Fast reads for spend, lifecycle quality, project pressure, and tyre ledger exposure.</p>
+		</div>
+		<div class="ti-kpi-grid" data-ti-summary-cards></div>
+	</section>
+
+	<section class="ti-section">
+		<div class="ti-section-heading">
+			<h2>Visual Intelligence</h2>
+			<p>Charts tuned for management reviews across brand quality, budget pressure, and stock retention.</p>
+		</div>
+		<div class="ti-chart-grid">
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Monthly Tyre Spend</h3>
+					<p>Submitted tyre invoices inside the selected window.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="monthly_spend_trend"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Forward Outlook</h3>
+					<p>Projected billed tyre spend from recent invoice direction.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="forecast_outlook"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Brand Lifecycle Ranking</h3>
+					<p>Top and watch brands based on closed tyre lifecycles.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="brand_performance"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Brand Spend Mix</h3>
+					<p>Where billed tyre spend is most concentrated by brand.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="brand_spend_mix"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Project Pressure</h3>
+					<p>Projects combining tyre demand, spend, and replacement stress.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="project_pressure"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Tyre Ledger Balance Aging</h3>
+					<p>Positive tyre balances still waiting in the ledger snapshot.</p>
+				</div>
+				<div class="ti-chart" data-ti-chart="ledger_balance"></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="ti-section">
+		<div class="ti-board-grid">
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Intelligence Feed</h3>
+					<p>Short management-facing explanations derived from the current filters.</p>
+				</div>
+				<div class="ti-insights" data-ti-insights></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Brand Command Board</h3>
+					<p>Best, stable, and watch brands based on lifecycle evidence.</p>
+				</div>
+				<div class="ti-board" data-ti-board="brand"></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="ti-section">
+		<div class="ti-board-grid">
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Project Hotspots</h3>
+					<p>Which projects are changing tyres the fastest and what that implies.</p>
+				</div>
+				<div class="ti-board" data-ti-board="project"></div>
+			</div>
+			<div class="ti-panel">
+				<div class="ti-panel-header">
+					<h3>Tyre Ledger Board</h3>
+					<p>Current positive balances and the items aging longest in the ledger.</p>
+				</div>
+				<div class="ti-board" data-ti-board="ledger"></div>
+			</div>
+		</div>
+	</section>
+</div>

@@ -14,9 +14,9 @@ def execute(filters=None):
     validate_filters(filters)
 
     columns = get_columns()
-    records = get_job_card_records(filters)
+    records = get_invoice_linked_maintenance_records(filters)
     if not records:
-        return columns, [], _("No maintenance cost records found for the selected filters."), None
+        return columns, [], _("No billed maintenance cost records found for the selected filters."), None
 
     vehicle_details = get_vehicle_details({record.vehicle for record in records if record.vehicle})
     data = build_report_rows(records, vehicle_details)
@@ -113,27 +113,55 @@ def parse_multi_select_filter(values):
     return [values]
 
 
-def get_job_card_records(filters):
+def get_invoice_linked_maintenance_records(filters):
     vehicles = parse_multi_select_filter(filters.get("vehicles"))
-
-    job_card_filters = {
-        "docstatus": 1,
-        "service_date": ["between", [filters.from_date, filters.to_date]],
+    conditions = [
+        "pi.docstatus = 1",
+        "pii.parenttype = 'Purchase Invoice'",
+        "COALESCE(pii.purchase_order, '') != ''",
+        "COALESCE(po.custom_job_card_link, '') != ''",
+        "pi.posting_date BETWEEN %(from_date)s AND %(to_date)s",
+    ]
+    values = {
+        "from_date": filters.from_date,
+        "to_date": filters.to_date,
     }
-    if vehicles:
-        job_card_filters["vehicle"] = ["in", vehicles]
 
-    return frappe.get_all(
-        "EAH Job Card",
-        filters=job_card_filters,
-        fields=[
-            "vehicle",
-            "service_date",
-            "spares_cost",
-            "service_charges",
-            "total_vat_exclusive",
-        ],
-        order_by="service_date asc, vehicle asc",
+    if vehicles:
+        conditions.append("jc.vehicle IN %(vehicles)s")
+        values["vehicles"] = tuple(vehicles)
+
+    return frappe.db.sql(
+        f"""
+        SELECT
+            pi.posting_date,
+            jc.name AS job_card,
+            jc.vehicle,
+            pii.base_net_amount AS total_maintenance_cost,
+            CASE
+                WHEN COALESCE(jc.custom_default_labour_item, '') != ''
+                 AND pii.item_code = jc.custom_default_labour_item
+                THEN pii.base_net_amount
+                ELSE 0
+            END AS service_charges,
+            CASE
+                WHEN COALESCE(jc.custom_default_labour_item, '') = ''
+                 OR pii.item_code != jc.custom_default_labour_item
+                THEN pii.base_net_amount
+                ELSE 0
+            END AS spares_cost
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
+        INNER JOIN `tabEAH Job Card` jc
+            ON jc.name = po.custom_job_card_link
+        WHERE {' AND '.join(conditions)}
+        ORDER BY pi.posting_date ASC, jc.vehicle ASC, pi.name ASC, pii.idx ASC
+        """,
+        values,
+        as_dict=True,
     )
 
 
@@ -155,9 +183,10 @@ def get_vehicle_details(vehicle_names):
 
 def build_report_rows(records, vehicle_details):
     currency = frappe.db.get_single_value("Global Defaults", "default_currency")
+    unassigned_vehicle = _("Unassigned Vehicle")
     monthly_cost_map = defaultdict(
         lambda: {
-            "job_cards": 0,
+            "job_cards": set(),
             "spares_cost": 0.0,
             "service_charges": 0.0,
             "total_maintenance_cost": 0.0,
@@ -165,27 +194,28 @@ def build_report_rows(records, vehicle_details):
     )
 
     for record in records:
-        service_date = getdate(record.service_date)
-        month_key = service_date.strftime("%Y-%m")
-        month_label = service_date.strftime("%b %Y")
-        vehicle = record.vehicle or _("Unassigned Vehicle")
+        posting_date = getdate(record.posting_date)
+        month_key = posting_date.strftime("%Y-%m")
+        month_label = posting_date.strftime("%b %Y")
+        vehicle = record.vehicle or unassigned_vehicle
 
         bucket = monthly_cost_map[(month_key, month_label, vehicle)]
-        bucket["job_cards"] += 1
+        if record.job_card:
+            bucket["job_cards"].add(record.job_card)
         bucket["spares_cost"] += flt(record.spares_cost)
         bucket["service_charges"] += flt(record.service_charges)
-        bucket["total_maintenance_cost"] += flt(record.total_vat_exclusive)
+        bucket["total_maintenance_cost"] += flt(record.total_maintenance_cost)
 
     rows = []
     for (month_key, month_label, vehicle), totals in sorted(monthly_cost_map.items()):
-        vehicle_info = vehicle_details.get(vehicle, {}) if vehicle != _("Unassigned Vehicle") else {}
+        vehicle_info = vehicle_details.get(vehicle, {}) if vehicle != unassigned_vehicle else {}
         rows.append(
             {
                 "month_key": month_key,
                 "month_label": month_label,
                 "vehicle": vehicle,
                 "license_plate": vehicle_info.get("license_plate"),
-                "job_cards": totals["job_cards"],
+                "job_cards": len(totals["job_cards"]),
                 "spares_cost": flt(totals["spares_cost"]),
                 "service_charges": flt(totals["service_charges"]),
                 "total_maintenance_cost": flt(totals["total_maintenance_cost"]),

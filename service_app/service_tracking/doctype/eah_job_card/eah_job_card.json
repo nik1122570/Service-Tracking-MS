@@ -2,33 +2,31 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-03-11 01:30:29.960973",
+ "creation": "2026-03-20 11:57:26.043573",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "vehicle",
-  "odometer_reading",
   "service_date",
   "supplier",
   "project",
   "column_break_6dth",
   "naming_series",
   "workshop",
-    "price_list",
+  "price_list",
   "section_break_6yw0",
   "driver_name",
   "column_break_mbat",
+  "custom_override_controls",
   "driver_mobile_number",
   "amended_from",
   "section_break_wyl0",
-  "complains",
   "faults",
   "supplied_parts",
-  "service_task_templates",
+  "labour_rates",
   "service_charges",
   "spares_cost",
-  "total_vat_exclusive",
-  "custom_override_controls"
+  "total_vat_exclusive"
  ],
  "fields": [
   {
@@ -37,13 +35,6 @@
    "in_list_view": 1,
    "label": "Vehicle",
    "options": "Vehicle",
-   "reqd": 1
-  },
-  {
-   "fieldname": "odometer_reading",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Odometer Reading",
    "reqd": 1
   },
   {
@@ -98,8 +89,10 @@
   },
   {
    "fieldname": "driver_name",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "label": "Driver Name",
+   "link_filters": "[[\"Employee\",\"custom_is_driver\",\"=\",1]]",
+   "options": "Employee",
    "reqd": 1
   },
   {
@@ -109,8 +102,7 @@
   {
    "fieldname": "driver_mobile_number",
    "fieldtype": "Data",
-   "label": "Driver Mobile Number",
-   "reqd": 1
+   "label": "Driver Mobile Number"
   },
   {
    "fieldname": "amended_from",
@@ -127,13 +119,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "complains",
-   "fieldtype": "Table",
-   "label": "Complains",
-   "options": "Complains",
-   "reqd": 1
-  },
-  {
    "fieldname": "faults",
    "fieldtype": "Table",
    "label": "Faults",
@@ -145,13 +130,6 @@
    "fieldtype": "Table",
    "label": "Supplied Parts",
    "options": "Supplied Parts"
-  },
-  {
-   "fieldname": "service_task_templates",
-   "fieldtype": "Table",
-   "label": "Service Task Templates",
-   "options": "Job Card Template",
-   "reqd": 1
   },
   {
    "fieldname": "service_charges",
@@ -169,21 +147,28 @@
    "label": "Total VAT Exclusive"
   },
   {
+   "default": "0",
    "fieldname": "custom_override_controls",
    "fieldtype": "Check",
    "label": "Override Controls"
+  },
+  {
+   "fieldname": "labour_rates",
+   "fieldtype": "Table",
+   "label": "Labour Rates",
+   "options": "Maintainance Tempelate"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-13 22:30:58.028531",
+ "modified": "2026-04-15 20:37:55.087196",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "EAH Job Card",
  "naming_rule": "By \"Naming Series\" field",
- "owner": "njohn@sfgroup.co.tz",
+ "owner": "Administrator",
  "permissions": [
   {
    "create": 1,
@@ -203,6 +188,5 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
- "client_script": ""
+ "states": []
 }

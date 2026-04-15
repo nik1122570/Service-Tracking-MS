@@ -212,6 +212,84 @@ def get_tyre_purchase_rows(filters=None, ignore_date_filters=False):
     )
 
 
+def get_tyre_purchase_invoice_rows(filters=None, ignore_date_filters=False):
+    filters = frappe._dict(filters or {})
+    vehicle_names = _get_vehicle_names(filters)
+    conditions = [
+        "pi.docstatus = 1",
+        "pii.parenttype = 'Purchase Invoice'",
+        "COALESCE(pii.purchase_order, '') != ''",
+        "COALESCE(po.custom_tyre_request_link, '') != ''",
+    ]
+    values = {}
+
+    if not ignore_date_filters and filters.get("from_date") and filters.get("to_date"):
+        conditions.append("pi.posting_date BETWEEN %(from_date)s AND %(to_date)s")
+        values["from_date"] = filters.from_date
+        values["to_date"] = filters.to_date
+
+    if vehicle_names:
+        conditions.append("request.vehicle IN %(vehicles)s")
+        values["vehicles"] = tuple(vehicle_names)
+
+    if filters.get("supplier"):
+        conditions.append("pi.supplier = %(supplier)s")
+        values["supplier"] = filters.supplier
+
+    if filters.get("project"):
+        conditions.append(
+            "COALESCE(NULLIF(pii.project, ''), NULLIF(po.project, ''), '') = %(project)s"
+        )
+        values["project"] = filters.project
+
+    if filters.get("cost_center"):
+        conditions.append(
+            "COALESCE(NULLIF(pii.cost_center, ''), NULLIF(po.cost_center, ''), '') = %(cost_center)s"
+        )
+        values["cost_center"] = filters.cost_center
+
+    if filters.get("brand"):
+        conditions.append("COALESCE(item.brand, '') = %(brand)s")
+        values["brand"] = filters.brand
+
+    if filters.get("item"):
+        conditions.append("pii.item_code = %(item)s")
+        values["item"] = filters.item
+
+    return frappe.db.sql(
+        f"""
+        SELECT
+            pi.name AS purchase_invoice,
+            pi.posting_date,
+            pi.supplier,
+            COALESCE(NULLIF(pii.project, ''), po.project) AS project,
+            COALESCE(NULLIF(pii.cost_center, ''), po.cost_center) AS cost_center,
+            po.custom_tyre_request_link AS tyre_request,
+            request.vehicle,
+            request.license_plate,
+            pii.item_code AS item,
+            pii.item_name,
+            item.brand AS tyre_brand,
+            pii.qty,
+            pii.uom,
+            pii.base_net_amount AS amount
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
+        INNER JOIN `tabTyre Request` request
+            ON request.name = po.custom_tyre_request_link
+        LEFT JOIN `tabItem` item
+            ON item.name = pii.item_code
+        WHERE {' AND '.join(conditions)}
+        ORDER BY pi.posting_date ASC, pi.name ASC, pii.idx ASC
+        """,
+        values,
+        as_dict=True,
+    )
+
+
 def get_tyre_receiving_rows(filters=None, ignore_date_filters=False):
     filters = frappe._dict(filters or {})
     vehicle_names = _get_vehicle_names(filters)

@@ -2,12 +2,14 @@ frappe.ui.form.on("EAH Job Card", {
 	setup(frm) {
 		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
+		set_labour_rates_operation_query(frm);
 		calculate_totals(frm);
 	},
 
 	refresh(frm) {
 		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
+		set_labour_rates_operation_query(frm);
 		sync_supplied_parts_price_list(frm, {
 			fetch_rates: true,
 			only_if_rate_missing: true,
@@ -99,6 +101,26 @@ frappe.ui.form.on("EAH Job Card", {
 
 	supplier(frm) {
 		refresh_supplied_parts_rates(frm, { force: true });
+	},
+
+	vehicle(frm) {
+		set_labour_rates_operation_query(frm);
+	},
+
+	make(frm) {
+		set_labour_rates_operation_query(frm);
+	},
+
+	weight_class(frm) {
+		set_labour_rates_operation_query(frm);
+	},
+
+	custom_make(frm) {
+		set_labour_rates_operation_query(frm);
+	},
+
+	custom_weight_class(frm) {
+		set_labour_rates_operation_query(frm);
 	}
 });
 
@@ -130,20 +152,32 @@ frappe.ui.form.on("Supplied Parts", {
 	}
 });
 
-frappe.ui.form.on("Job Card Template", {
-	service_task_templates_add(frm) {
+frappe.ui.form.on("Maintainance Tempelate", {
+	labour_rates_add(frm) {
 		calculate_totals(frm);
 	},
 
-	service_task_templates_remove(frm) {
+	labour_rates_remove(frm) {
 		calculate_totals(frm);
 	},
 
-	service_template(frm) {
+	operation(frm, cdt, cdn) {
+		set_labour_row_total(cdt, cdn);
 		calculate_totals(frm);
 	},
 
-	rate(frm) {
+	maximum_hours(frm, cdt, cdn) {
+		set_labour_row_total(cdt, cdn);
+		calculate_totals(frm);
+	},
+
+	flat_rate(frm, cdt, cdn) {
+		set_labour_row_total(cdt, cdn);
+		calculate_totals(frm);
+	},
+
+	total_amount(frm, cdt, cdn) {
+		set_labour_row_total(cdt, cdn);
 		calculate_totals(frm);
 	}
 });
@@ -166,6 +200,48 @@ function set_supplied_parts_field_state(frm) {
 	}
 }
 
+function set_labour_rates_operation_query(frm) {
+	if (!frm.fields_dict.labour_rates || !frm.fields_dict.labour_rates.grid) {
+		return;
+	}
+
+	frm.fields_dict.labour_rates.grid.get_field("operation").get_query = () => {
+		const make = get_job_card_make(frm);
+		const weightClass = get_job_card_weight_class(frm);
+		if (!make || !weightClass) {
+			return {
+				filters: {
+					name: "__NO_MATCHING_TEMPLATE__"
+				}
+			};
+		}
+
+		const filters = {
+			docstatus: 1,
+			make,
+			weight_class: weightClass
+		};
+
+		return { filters };
+	};
+}
+
+function get_job_card_make(frm) {
+	return (
+		frm.doc.make
+		|| frm.doc.custom_make
+		|| ""
+	);
+}
+
+function get_job_card_weight_class(frm) {
+	return (
+		frm.doc.weight_class
+		|| frm.doc.custom_weight_class
+		|| ""
+	);
+}
+
 function calculate_totals(frm) {
 	const custom_total_qty = (frm.doc.supplied_parts || []).reduce(
 		(total, row) => total + flt(row.qty),
@@ -175,16 +251,33 @@ function calculate_totals(frm) {
 		(total, row) => total + (flt(row.qty) * flt(row.rate)),
 		0
 	);
-	const service_charges = (frm.doc.service_task_templates || []).reduce(
-		(total, row) => total + flt(row.rate),
-		0
-	);
+	const service_charges = calculate_labour_totals(frm);
 	const total_vat_exclusive = spares_cost + service_charges;
 
 	set_total_field_value(frm, "custom_total_qty", custom_total_qty);
 	set_total_field_value(frm, "spares_cost", spares_cost);
 	set_total_field_value(frm, "service_charges", service_charges);
 	set_total_field_value(frm, "total_vat_exclusive", total_vat_exclusive);
+	if (frm.fields_dict.labour_rates) {
+		frm.refresh_field("labour_rates");
+	}
+}
+
+function set_labour_row_total(cdt, cdn) {
+	const row = locals[cdt] && locals[cdt][cdn];
+	if (!row) {
+		return;
+	}
+
+	row.total_amount = flt(row.maximum_hours) * flt(row.flat_rate);
+}
+
+function calculate_labour_totals(frm) {
+	return (frm.doc.labour_rates || []).reduce((total, row) => {
+		const row_total = flt(row.maximum_hours) * flt(row.flat_rate);
+		row.total_amount = row_total;
+		return total + row_total;
+	}, 0);
 }
 
 function set_total_field_value(frm, fieldname, value) {

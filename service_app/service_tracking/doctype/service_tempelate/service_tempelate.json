@@ -7,55 +7,66 @@
  "engine": "InnoDB",
  "field_order": [
   "tempelate_name",
-  "enable",
+  "make",
+  "weight_class",
   "column_break_diu6",
-  "price_list",
-  "section_break_hxan",
-  "service_template_task",
-  "service_template_parts_and_consumable",
+  "hourly_rate",
+  "maximum_hours",
+  "section_break_vnie",
+  "operation_description",
   "amended_from"
  ],
  "fields": [
   {
    "fieldname": "tempelate_name",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Tempelate Name",
+   "label": "Operation",
+   "options": "Operations Catalogue",
    "reqd": 1,
    "unique": 1
-  },
-  {
-   "fieldname": "price_list",
-   "fieldtype": "Link",
-   "label": "Price List",
-   "options": "Price List"
-  },
-  {
-   "default": "0",
-   "fieldname": "enable",
-   "fieldtype": "Check",
-   "label": "Enable"
   },
   {
    "fieldname": "column_break_diu6",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "section_break_hxan",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "service_template_parts_and_consumable",
-   "fieldtype": "Table",
-   "label": "Service Template Parts and Consumable",
-   "options": "Template Parts and Consumables",
+   "fieldname": "make",
+   "fieldtype": "Select",
+   "label": "Make",
+   "options": "\nHOWO\nSCANIA",
    "reqd": 1
   },
   {
-   "fieldname": "service_template_task",
-   "fieldtype": "Table",
-   "label": "Service Template Task",
-   "options": "Template Task",
+   "fieldname": "weight_class",
+   "fieldtype": "Select",
+   "label": "Weight Class",
+   "options": "\n5 Tonnes\n10Tonnes\n15 Tonnes",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hourly_rate",
+   "fieldtype": "Currency",
+   "label": "Standard Flat Rate",
+   "non_negative": 1,
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "maximum_hours",
+   "fieldtype": "Float",
+   "label": "Maximum Hours",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_vnie",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "operation_description",
+   "fieldtype": "HTML Editor",
+   "label": "Operation Description",
    "reqd": 1
   },
   {
@@ -73,7 +84,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-13 17:33:00.508472",
+ "modified": "2026-04-15 18:24:39.393821",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Service Tempelate",

@@ -13,6 +13,7 @@ class EAHJobCard(Document):
     def validate(self):
         self.ensure_required_fields()
         self.ensure_supplied_parts_data()
+        self.validate_labour_rates_template_scope()
         self.calculate_totals()
         self.validate_supplied_parts_rate_limit()
         warnings = []
@@ -77,10 +78,90 @@ class EAHJobCard(Document):
                     "Item", part.item, "item_name"
                 )
 
+    def _get_first_present_value(self, source, fieldnames):
+        for fieldname in fieldnames:
+            value = getattr(source, fieldname, None)
+            if value not in (None, ""):
+                return str(value).strip()
+        return ""
+
+    def _normalize_scope_value(self, value):
+        return " ".join(str(value or "").strip().split()).lower()
+
+    def get_job_card_make_and_weight_class(self):
+        make = self._get_first_present_value(
+            self,
+            ["make", "custom_make", "vehicle_make", "custom_vehicle_make"],
+        )
+        weight_class = self._get_first_present_value(
+            self,
+            ["weight_class", "custom_weight_class", "vehicle_weight_class", "custom_vehicle_weight_class"],
+        )
+        return make, weight_class, "EAH Job Card"
+
+    def validate_labour_rates_template_scope(self):
+        labour_rows = list(getattr(self, "labour_rates", None) or [])
+        if not labour_rows:
+            return
+
+        job_make, job_weight_class, scope_source = self.get_job_card_make_and_weight_class()
+        if not job_make or not job_weight_class:
+            frappe.throw(
+                "Make and Weight Class must be populated on EAH Job Card before selecting Labour Rate templates.",
+                title="Missing Job Card Scope",
+            )
+        normalized_job_make = self._normalize_scope_value(job_make)
+        normalized_job_weight_class = self._normalize_scope_value(job_weight_class)
+        mismatch_errors = []
+
+        for index, row in enumerate(labour_rows, start=1):
+            operation = getattr(row, "operation", None)
+            if not operation:
+                continue
+
+            operation_scope = frappe.db.get_value(
+                "Service Tempelate",
+                operation,
+                ["make", "weight_class"],
+                as_dict=True,
+            )
+            if not operation_scope:
+                mismatch_errors.append(f"Row {index}: Operation template {operation} was not found.")
+                continue
+
+            operation_make = (operation_scope.make or "").strip()
+            operation_weight_class = (operation_scope.weight_class or "").strip()
+            normalized_operation_make = self._normalize_scope_value(operation_make)
+            normalized_operation_weight_class = self._normalize_scope_value(operation_weight_class)
+
+            if (
+                normalized_job_make
+                and normalized_operation_make
+                and normalized_job_make != normalized_operation_make
+            ):
+                mismatch_errors.append(
+                    f"Row {index}: Operation {operation} is for make {operation_make}, "
+                    f"but Job Card make is {job_make} (source: {scope_source})."
+                )
+
+            if (
+                normalized_job_weight_class
+                and normalized_operation_weight_class
+                and normalized_job_weight_class != normalized_operation_weight_class
+            ):
+                mismatch_errors.append(
+                    f"Row {index}: Operation {operation} is for weight class {operation_weight_class}, "
+                    f"but Job Card weight class is {job_weight_class} (source: {scope_source})."
+                )
+
+        if mismatch_errors:
+            frappe.throw("<br>".join(mismatch_errors), title="Labour Rate Template Mismatch")
+
     def calculate_totals(self):
         total_qty = sum(flt(part.qty) for part in self.supplied_parts)
         spares_cost = sum(flt(part.qty) * flt(part.rate) for part in self.supplied_parts)
-        service_charges = sum(flt(task.rate) for task in self.service_task_templates)
+        service_charges = get_job_card_labour_charge_total(self, update_row_totals=True)
+
         total_vat_exclusive = spares_cost + service_charges
 
         if self.meta.has_field("custom_total_qty"):
@@ -375,7 +456,7 @@ def make_maintenance_return_note(source_name, target_doc=None):
 def make_purchase_order(source_name, target_doc=None):
 
     def append_labour_charge_item(source, target):
-        service_charges = flt(source.service_charges)
+        service_charges = get_job_card_labour_charge_total(source, update_row_totals=False)
         if service_charges <= 0:
             return
 
@@ -395,9 +476,20 @@ def make_purchase_order(source_name, target_doc=None):
             frappe.throw(f"Default Labour Item {labour_item} was not found.")
 
         description = f"Labour Charges for EAH Job Card {source.name}"
-        service_templates = [
-            row.service_template for row in source.service_task_templates if row.service_template
-        ]
+        service_templates = []
+
+        labour_rows = list(getattr(source, "labour_rates", None) or [])
+        if labour_rows:
+            service_templates = [
+                row.operation for row in labour_rows if getattr(row, "operation", None)
+            ]
+        else:
+            service_templates = [
+                row.service_template
+                for row in (getattr(source, "service_task_templates", None) or [])
+                if getattr(row, "service_template", None)
+            ]
+
         if service_templates:
             description += "\nService Templates: " + ", ".join(service_templates)
 
@@ -423,6 +515,8 @@ def make_purchase_order(source_name, target_doc=None):
         target.supplier = source.supplier
         target.custom_job_card_link = source.name  # Link PO -> Job Card
         target.cost_center = getattr(source, "custom_cost_center", None)
+        if hasattr(target, "ignore_pricing_rule"):
+            target.ignore_pricing_rule = 1
         append_labour_charge_item(source, target)
 
     doc = get_mapped_doc(
@@ -466,7 +560,8 @@ def get_expected_job_card_purchase_order_rows(job_card):
         if part.item
     ]
 
-    if flt(job_card.service_charges) > 0:
+    service_charges = get_job_card_labour_charge_total(job_card, update_row_totals=False)
+    if service_charges > 0:
         labour_item = getattr(job_card, "custom_default_labour_item", None)
         if not labour_item:
             frappe.throw(
@@ -479,7 +574,7 @@ def get_expected_job_card_purchase_order_rows(job_card):
             _normalize_purchase_order_integrity_row(
                 labour_item,
                 1,
-                job_card.service_charges,
+                service_charges,
                 labour_uom,
             )
         )
@@ -586,14 +681,28 @@ def get_vehicle_maintenance_history(vehicle):
 
     for jc in job_cards:
 
-        templates = frappe.get_all(
-            "Job Card Template",
+        templates = []
+        labour_templates = frappe.get_all(
+            "Maintainance Tempelate",
             filters={
                 "parent": jc.name,
-                "parentfield": "service_task_templates"
+                "parentfield": "labour_rates"
             },
-            pluck="service_template"
+            pluck="operation"
         )
+
+        if labour_templates:
+            templates = labour_templates
+        else:
+            # Backward compatibility for legacy rows.
+            templates = frappe.get_all(
+                "Job Card Template",
+                filters={
+                    "parent": jc.name,
+                    "parentfield": "service_task_templates"
+                },
+                pluck="service_template"
+            )
 
         parts = frappe.get_all(
             "Supplied Parts",
@@ -645,6 +754,28 @@ def get_item_price_rate(item_code, price_list, supplier=None):
 def get_item_price(item_code, price_list, supplier=None):
     price = get_item_price_rate(item_code, price_list, supplier)
     return {"rate": price or 0}
+
+
+def get_job_card_labour_charge_total(job_card, update_row_totals=False):
+    labour_rows = list(getattr(job_card, "labour_rates", None) or [])
+    if not labour_rows:
+        # Backward compatibility for legacy Job Cards that still use service_task_templates.
+        return sum(
+            flt(task.rate) for task in (getattr(job_card, "service_task_templates", None) or [])
+        )
+
+    total = 0
+    for row in labour_rows:
+        maximum_hours = flt(getattr(row, "maximum_hours", 0), 6)
+        flat_rate = flt(getattr(row, "flat_rate", 0), 6)
+        row_total = flt(maximum_hours * flat_rate, 6)
+        if update_row_totals:
+            row.maximum_hours = maximum_hours
+            row.flat_rate = flat_rate
+            row.total_amount = row_total
+        total += row_total
+
+    return flt(total, 6)
 
 
 

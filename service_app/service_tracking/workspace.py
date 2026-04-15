@@ -6,6 +6,7 @@ import frappe
 
 MAINTENANCE_CONTROL_CENTER = "Maintenance Control Center"
 MAINTENANCE_INTELLIGENCE_PAGE = "maintenance-intelligence"
+TYRE_INTELLIGENCE_PAGE = "tyre-intelligence"
 DEFAULT_CURRENCY = lambda: frappe.db.get_single_value("Global Defaults", "default_currency")
 MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
     {
@@ -74,13 +75,13 @@ MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
     {
         "label": "Total Tyre Cost This Month",
         "method": "service_app.service_tracking.number_cards.get_total_tyre_cost_this_month",
-        "document_type": "Purchase Order",
+        "document_type": "Purchase Invoice",
         "currency": True,
     },
     {
         "label": "Total Tyre Cost This Quarter",
         "method": "service_app.service_tracking.number_cards.get_total_tyre_cost_this_quarter",
-        "document_type": "Purchase Order",
+        "document_type": "Purchase Invoice",
         "currency": True,
     },
 )
@@ -126,6 +127,13 @@ MAINTENANCE_CONTROL_CENTER_SHORTCUTS = (
         "link_to": MAINTENANCE_INTELLIGENCE_PAGE,
         "color": "#B45309",
         "icon": "es-line-chart",
+    },
+    {
+        "label": "Open Tyre Intelligence",
+        "type": "Page",
+        "link_to": TYRE_INTELLIGENCE_PAGE,
+        "color": "#0F766E",
+        "icon": "es-pie-chart",
     },
 )
 
