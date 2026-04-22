@@ -7,7 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "source_type",
   "eah_job_card",
+  "manual_reason",
   "vehicle",
   "service_date",
   "supplier",
@@ -32,33 +34,48 @@
    "reqd": 1
   },
   {
+   "default": "From EAH Job Card",
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "label": "Source Type",
+   "options": "From EAH Job Card\nManual",
+   "reqd": 1
+  },
+  {
    "fieldname": "eah_job_card",
    "fieldtype": "Link",
    "label": "EAH Job Card",
    "options": "EAH Job Card",
-   "read_only": 1,
-   "reqd": 1
+   "depends_on": "eval:doc.source_type === 'From EAH Job Card'",
+   "mandatory_depends_on": "eval:doc.source_type === 'From EAH Job Card'"
+  },
+  {
+   "depends_on": "eval:doc.source_type === 'Manual'",
+   "fieldname": "manual_reason",
+   "fieldtype": "Select",
+   "label": "Manual Reason",
+   "mandatory_depends_on": "eval:doc.source_type === 'Manual'",
+   "options": "Reconciliation\nOpening Stock\nAdjustment"
   },
   {
    "fieldname": "vehicle",
    "fieldtype": "Link",
    "label": "Vehicle",
    "options": "Vehicle",
-   "read_only": 1,
-   "reqd": 1
+   "read_only_depends_on": "eval:doc.source_type === 'From EAH Job Card'"
   },
   {
    "fieldname": "service_date",
    "fieldtype": "Date",
    "label": "Service Date",
-   "read_only": 1
+   "read_only_depends_on": "eval:doc.source_type === 'From EAH Job Card'"
   },
   {
    "fieldname": "supplier",
    "fieldtype": "Link",
    "label": "Supplier",
    "options": "Supplier",
-   "read_only": 1
+   "read_only_depends_on": "eval:doc.source_type === 'From EAH Job Card'"
   },
   {
    "fieldname": "column_break_header",

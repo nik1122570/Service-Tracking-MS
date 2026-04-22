@@ -6,7 +6,7 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "maintenance_position",
+  "operation_done",
   "operation",
   "work_type",
   "maintenance_description",
@@ -16,37 +16,41 @@
  ],
  "fields": [
   {
+   "fetch_from": "operation_done.tempelate_name",
    "fieldname": "operation",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Operation",
-   "options": "Service Tempelate"
+   "options": "Operations Catalogue",
+   "read_only": 1
   },
   {
-   "fetch_from": "operation.custom_work",
+   "fetch_from": "operation_done.work",
    "fieldname": "work_type",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Work Type",
    "options": "Work Catalogue",
-   "reqd": 1
+   "read_only": 1
   },
   {
-   "fetch_from": "operation.maximum_hours",
+   "fetch_from": "operation_done.maximum_hours",
    "fieldname": "maximum_hours",
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Maximum Hours",
+   "read_only": 1,
    "reqd": 1
   },
   {
-   "fetch_from": "operation.hourly_rate",
+   "fetch_from": "operation_done.hourly_rate",
    "fieldname": "flat_rate",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Flat Rate",
    "options": "currency",
    "precision": "2",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -54,21 +58,23 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Total Amount",
-   "options": "currency"
+   "options": "currency",
+   "read_only": 1
   },
   {
-   "fetch_from": "operation.operation_description",
+   "fetch_from": "operation_done.operation_description",
    "fieldname": "maintenance_description",
    "fieldtype": "Small Text",
    "label": "Maintenance Description",
-   "options": "Maintenance Postion"
+   "options": "Maintenance Postion",
+   "read_only": 1
   },
   {
-   "fieldname": "maintenance_position",
+   "fieldname": "operation_done",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Maintenance Position",
-   "options": "Maintenance Postion",
+   "label": "Operation Done",
+   "options": "Service Tempelate",
    "reqd": 1
   }
  ],
@@ -76,7 +82,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-15 19:41:35.181223",
+ "modified": "2026-04-21 21:07:33.660342",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Maintainance Tempelate",

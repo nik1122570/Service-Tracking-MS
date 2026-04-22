@@ -1,13 +1,15 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt, today
+from frappe.utils import add_months, flt, getdate, today
 
 
 class MaintenanceReturnNote(Document):
 
     def validate(self):
+        self.set_source_type_defaults()
         self.sync_from_job_card()
         self.ensure_single_active_return_note()
+        self.validate_manual_entry_requirements()
         self.set_default_receipt_metadata()
         self.validate_returned_parts()
         self.calculate_totals()
@@ -20,9 +22,17 @@ class MaintenanceReturnNote(Document):
     def on_cancel(self):
         self.status = "Cancelled"
 
+    def set_source_type_defaults(self):
+        if not self.source_type:
+            self.source_type = "From EAH Job Card"
+
     def sync_from_job_card(self):
-        if not self.eah_job_card:
+        if self.source_type != "From EAH Job Card":
+            self.eah_job_card = None
             return
+
+        if not self.eah_job_card:
+            frappe.throw("EAH Job Card is required when Source Type is 'From EAH Job Card'.")
 
         job_card = frappe.get_doc("EAH Job Card", self.eah_job_card)
         self.vehicle = job_card.vehicle
@@ -30,7 +40,7 @@ class MaintenanceReturnNote(Document):
         self.supplier = job_card.supplier
 
     def ensure_single_active_return_note(self):
-        if not self.eah_job_card:
+        if self.source_type != "From EAH Job Card" or not self.eah_job_card:
             return
 
         existing_filters = {
@@ -49,6 +59,21 @@ class MaintenanceReturnNote(Document):
             frappe.throw(
                 f"Maintenance Return Note {existing_note} already exists for EAH Job Card {self.eah_job_card}."
             )
+
+    def validate_manual_entry_requirements(self):
+        if self.source_type != "Manual":
+            self.manual_reason = None
+            return
+
+        if not self.manual_reason:
+            frappe.throw("Manual Reason is required when Source Type is Manual.")
+
+        if not (self.remarks or "").strip():
+            frappe.throw(
+                "Please add Remarks for manual Maintenance Return Notes so reconciliation/opening stock entries are auditable."
+            )
+
+        self.remarks = self.remarks.strip()
 
     def set_default_receipt_metadata(self):
         if not self.received_date:
@@ -113,6 +138,71 @@ class MaintenanceReturnNote(Document):
 
 
 @frappe.whitelist()
+def get_spare_parts_ledger_snapshot(
+    item,
+    vehicle=None,
+    eah_job_card=None,
+    from_date=None,
+    to_date=None,
+    limit=30,
+):
+    if not item:
+        frappe.throw("Item is required.")
+
+    filters = frappe._dict({"item": item})
+    if vehicle:
+        filters.vehicle = vehicle
+    if eah_job_card:
+        filters.eah_job_card = eah_job_card
+
+    filters.from_date = from_date or add_months(today(), -12)
+    filters.to_date = to_date or today()
+    if getdate(filters.from_date) > getdate(filters.to_date):
+        frappe.throw("From Date cannot be greater than To Date.")
+
+    from service_app.service_tracking.report.used_spare_parts_ledger_report.used_spare_parts_ledger_report import (
+        build_ledger_rows,
+        get_issue_rows,
+        get_receipt_rows,
+    )
+
+    receipt_rows = get_receipt_rows(filters)
+    issue_rows = get_issue_rows(filters)
+    all_rows = build_ledger_rows(receipt_rows, issue_rows)
+
+    try:
+        row_limit = max(int(limit or 30), 1)
+    except (TypeError, ValueError):
+        row_limit = 30
+
+    rows = all_rows[-row_limit:] if len(all_rows) > row_limit else all_rows
+    formatted_rows = [
+        {
+            **row,
+            "posting_date": str(row.get("posting_date") or ""),
+            "in_qty": flt(row.get("in_qty")),
+            "out_qty": flt(row.get("out_qty")),
+            "balance_qty": flt(row.get("balance_qty")),
+        }
+        for row in rows
+    ]
+
+    summary = {
+        "from_date": str(filters.from_date),
+        "to_date": str(filters.to_date),
+        "movement_count": len(all_rows),
+        "total_in_qty": sum(flt(row.get("in_qty")) for row in all_rows),
+        "total_out_qty": sum(flt(row.get("out_qty")) for row in all_rows),
+        "balance_qty": flt(all_rows[-1].get("balance_qty")) if all_rows else 0,
+    }
+
+    return {
+        "rows": formatted_rows,
+        "summary": summary,
+    }
+
+
+@frappe.whitelist()
 def make_used_spare_parts_issue_note(source_name, target_doc=None):
     source = frappe.get_doc("Maintenance Return Note", source_name)
 
@@ -121,6 +211,7 @@ def make_used_spare_parts_issue_note(source_name, target_doc=None):
 
     balances = get_return_note_item_balances(source.name)
     target = frappe.new_doc("Used Spare Parts Issue Note")
+    target.source_type = "From Maintenance Return Note"
     target.maintenance_return_note = source.name
     target.eah_job_card = source.eah_job_card
     target.vehicle = source.vehicle

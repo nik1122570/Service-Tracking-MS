@@ -1,7 +1,8 @@
 import frappe
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import add_months, date_diff, flt, getdate, today
+from frappe.utils import add_days, cint, date_diff, flt, getdate, today
+from service_app.service_tracking.vehicle_make_controls import ensure_vehicle_make_enabled
 
 
 # Warn when another submitted job card exists within the last 30 days.
@@ -12,6 +13,7 @@ class EAHJobCard(Document):
 
     def validate(self):
         self.ensure_required_fields()
+        self.validate_job_card_make_enabled()
         self.ensure_supplied_parts_data()
         self.validate_labour_rates_template_scope()
         self.calculate_totals()
@@ -19,9 +21,9 @@ class EAHJobCard(Document):
         warnings = []
         warnings += self.check_recent_vehicle_service()
         warnings += self.check_part_warranty()
-        warnings += self.check_useful_life()
 
-        if warnings:
+        # Show warnings during draft validation, but keep submit flow quiet.
+        if warnings and not getattr(self.flags, "in_submit", False):
             frappe.msgprint(
                 "<br>".join(warnings),
                 title="Maintenance Warning",
@@ -50,7 +52,7 @@ class EAHJobCard(Document):
 
     def ensure_supplied_parts_data(self):
         """
-        Ensure supplied parts contain the required maintenance tracking data
+        Ensure supplied parts contain the required transactional data.
         """
 
         for part in self.supplied_parts:
@@ -61,22 +63,34 @@ class EAHJobCard(Document):
             if not part.qty:
                 frappe.throw(f"Quantity is required for item {part.item}")
 
-            if not part.useful_life:
-                frappe.throw(f"Useful Life must be defined for item {part.item}")
-
-            if not part.has_warranty:
-                frappe.throw(f"Warranty selection required for item {part.item}")
-
-            if part.has_warranty == "Yes" and not part.warranty_period__in_months:
-                frappe.throw(
-                    f"Warranty period must be defined for item {part.item}"
-                )
-
             # Auto-fetch item name if missing.
             if part.item and not part.item_name:
                 part.item_name = frappe.db.get_value(
                     "Item", part.item, "item_name"
                 )
+
+            # Keep child row price list aligned with parent Job Card price list.
+            if self.price_list and part.price_list != self.price_list:
+                part.price_list = self.price_list
+
+            # Auto-fetch supplier-specific price (fallback to generic Item Price)
+            # when row rate is blank/zero.
+            price_list = part.price_list or self.price_list
+            if part.item and price_list and not flt(part.rate):
+                approved_rate = get_item_price_rate(part.item, price_list, self.supplier)
+                if approved_rate is not None:
+                    part.rate = flt(approved_rate)
+
+    def is_warranty_control_disabled(self):
+        return bool(
+            cint(
+                frappe.db.get_single_value(
+                    "Service App Settings",
+                    "disable_warranty_control_in_job_card",
+                )
+                or 0
+            )
+        )
 
     def _get_first_present_value(self, source, fieldnames):
         for fieldname in fieldnames:
@@ -88,41 +102,43 @@ class EAHJobCard(Document):
     def _normalize_scope_value(self, value):
         return " ".join(str(value or "").strip().split()).lower()
 
-    def get_job_card_make_and_weight_class(self):
+    def get_job_card_make(self):
         make = self._get_first_present_value(
             self,
             ["make", "custom_make", "vehicle_make", "custom_vehicle_make"],
         )
-        weight_class = self._get_first_present_value(
-            self,
-            ["weight_class", "custom_weight_class", "vehicle_weight_class", "custom_vehicle_weight_class"],
+        return make, "EAH Job Card"
+
+    def validate_job_card_make_enabled(self):
+        make, scope_source = self.get_job_card_make()
+        ensure_vehicle_make_enabled(
+            make,
+            context_label=f"{scope_source} Make",
         )
-        return make, weight_class, "EAH Job Card"
 
     def validate_labour_rates_template_scope(self):
         labour_rows = list(getattr(self, "labour_rates", None) or [])
         if not labour_rows:
             return
 
-        job_make, job_weight_class, scope_source = self.get_job_card_make_and_weight_class()
-        if not job_make or not job_weight_class:
+        job_make, scope_source = self.get_job_card_make()
+        if not job_make:
             frappe.throw(
-                "Make and Weight Class must be populated on EAH Job Card before selecting Labour Rate templates.",
+                "Make must be populated on EAH Job Card before selecting Labour Rate templates.",
                 title="Missing Job Card Scope",
             )
         normalized_job_make = self._normalize_scope_value(job_make)
-        normalized_job_weight_class = self._normalize_scope_value(job_weight_class)
         mismatch_errors = []
 
         for index, row in enumerate(labour_rows, start=1):
-            operation = getattr(row, "operation", None)
+            operation = getattr(row, "operation_done", None) or getattr(row, "operation", None)
             if not operation:
                 continue
 
             operation_scope = frappe.db.get_value(
                 "Service Tempelate",
                 operation,
-                ["make", "weight_class"],
+                ["make"],
                 as_dict=True,
             )
             if not operation_scope:
@@ -130,9 +146,7 @@ class EAHJobCard(Document):
                 continue
 
             operation_make = (operation_scope.make or "").strip()
-            operation_weight_class = (operation_scope.weight_class or "").strip()
             normalized_operation_make = self._normalize_scope_value(operation_make)
-            normalized_operation_weight_class = self._normalize_scope_value(operation_weight_class)
 
             if (
                 normalized_job_make
@@ -142,16 +156,6 @@ class EAHJobCard(Document):
                 mismatch_errors.append(
                     f"Row {index}: Operation {operation} is for make {operation_make}, "
                     f"but Job Card make is {job_make} (source: {scope_source})."
-                )
-
-            if (
-                normalized_job_weight_class
-                and normalized_operation_weight_class
-                and normalized_job_weight_class != normalized_operation_weight_class
-            ):
-                mismatch_errors.append(
-                    f"Row {index}: Operation {operation} is for weight class {operation_weight_class}, "
-                    f"but Job Card weight class is {job_weight_class} (source: {scope_source})."
                 )
 
         if mismatch_errors:
@@ -203,7 +207,6 @@ class EAHJobCard(Document):
         errors = []
         errors += self.check_recent_vehicle_service()
         errors += self.check_part_warranty()
-        errors += self.check_useful_life()
 
         # If there are control issues
         if errors:
@@ -221,13 +224,7 @@ class EAHJobCard(Document):
 
             # If override checked -> allow but warn
             else:
-
-                frappe.msgprint(
-                    "<b>Controls Overridden by Management</b><br><br>"
-                    + "<br>".join(errors),
-                    title="Override Applied",
-                    indicator="orange"
-                )
+                pass
 
     def check_recent_vehicle_service(self):
         warnings = []
@@ -261,15 +258,15 @@ class EAHJobCard(Document):
 
         return warnings
 
-    def get_previous_part_records(self, item_code):
+    def get_latest_previous_part_service_date(self, item_code):
         if not item_code or not self.vehicle or not self.service_date:
-            return []
+            return None
 
-        if not hasattr(self, "_previous_part_records_by_item"):
-            self._previous_part_records_by_item = {}
+        if not hasattr(self, "_previous_part_service_date_by_item"):
+            self._previous_part_service_date_by_item = {}
 
-        if item_code in self._previous_part_records_by_item:
-            return self._previous_part_records_by_item[item_code]
+        if item_code in self._previous_part_service_date_by_item:
+            return self._previous_part_service_date_by_item[item_code]
 
         conditions = [
             "sp.parenttype = 'EAH Job Card'",
@@ -293,22 +290,39 @@ class EAHJobCard(Document):
             f"""
             SELECT
                 sp.parent,
-                sp.warranty_period__in_months,
-                sp.useful_life,
                 jc.service_date
             FROM `tabSupplied Parts` sp
             INNER JOIN `tabEAH Job Card` jc
                 ON jc.name = sp.parent
             WHERE {" AND ".join(conditions)}
             ORDER BY jc.service_date DESC
+            LIMIT 1
             """,
             values,
             as_dict=True,
         )
-        self._previous_part_records_by_item[item_code] = records
-        return records
+        service_date = getdate(records[0].service_date) if records else None
+        self._previous_part_service_date_by_item[item_code] = service_date
+        return service_date
+
+    def get_item_warranty_days(self, item_code):
+        if not item_code:
+            return 0
+
+        if not hasattr(self, "_item_warranty_days_by_item"):
+            self._item_warranty_days_by_item = {}
+
+        if item_code in self._item_warranty_days_by_item:
+            return self._item_warranty_days_by_item[item_code]
+
+        warranty_days = cint(flt(frappe.db.get_value("Item", item_code, "warranty_period") or 0))
+        self._item_warranty_days_by_item[item_code] = warranty_days
+        return warranty_days
 
     def check_part_warranty(self):
+        if self.is_warranty_control_disabled():
+            return []
+
         warnings = []
         reference_date = getdate(self.service_date or today())
         checked_items = set()
@@ -319,81 +333,27 @@ class EAHJobCard(Document):
 
             checked_items.add(part.item)
             part_label = part.item_name or part.item
-            previous_parts = self.get_previous_part_records(part.item)
+            warranty_days = self.get_item_warranty_days(part.item)
+            if warranty_days <= 0:
+                continue
 
-            for prev in previous_parts:
-                if not prev.warranty_period__in_months:
-                    continue
+            previous_service_date = self.get_latest_previous_part_service_date(part.item)
+            if not previous_service_date:
+                continue
 
-                expiry = add_months(
-                    prev.service_date,
-                    prev.warranty_period__in_months
+            expiry = getdate(add_days(previous_service_date, warranty_days))
+            if reference_date <= expiry:
+                days_remaining = max(date_diff(expiry, reference_date), 0)
+                warnings.append(
+                    f"Part {part_label} may still be under warranty until {expiry} "
+                    f"({days_remaining} day(s) remaining)."
                 )
-
-                if reference_date <= getdate(expiry):
-                    warnings.append(
-                        f"Part {part_label} may still be under warranty until {expiry}."
-                    )
-                    break
-
-        return warnings
-
-    def check_useful_life(self):
-        warnings = []
-        reference_date = getdate(self.service_date or today())
-        checked_items = set()
-
-        for part in self.supplied_parts:
-            if not part.item or part.item in checked_items:
-                continue
-
-            checked_items.add(part.item)
-            part_label = part.item_name or part.item
-            previous_parts = self.get_previous_part_records(part.item)
-
-            for prev in previous_parts:
-                if not prev.useful_life:
-                    continue
-
-                expiry = add_months(prev.service_date, prev.useful_life)
-
-                if reference_date <= getdate(expiry):
-                    warnings.append(
-                        f"Part {part_label} may still be within useful life until {expiry}."
-                    )
-                    break
 
         return warnings
 
     def on_submit(self):
-        """
-        Confirm that maintenance record including spare parts was stored
-        """
-
-        parts_summary = ""
-
-        for part in self.supplied_parts:
-            parts_summary += f"""
-            - {part.item_name or part.item}
-            | Useful Life: {part.useful_life}
-            | Warranty: {part.has_warranty}
-            """
-
-        frappe.msgprint(
-            f"""
-            <b>Maintenance History Recorded Successfully</b><br><br>
-
-            Vehicle: <b>{self.vehicle}</b><br>
-            Service Date: {self.service_date}<br>
-            Supplier: {self.supplier}<br>
-            Driver: {self.driver_name}<br><br>
-
-            <b>Supplied Parts Recorded:</b><br>
-            {parts_summary}
-            """,
-            title="Maintenance Recorded",
-            indicator="green"
-        )
+        # Keep submit flow quiet by design.
+        pass
 
 
 @frappe.whitelist()
@@ -417,6 +377,7 @@ def make_maintenance_return_note(source_name, target_doc=None):
         )
 
     target = frappe.new_doc("Maintenance Return Note")
+    target.source_type = "From EAH Job Card"
     target.eah_job_card = source.name
     target.vehicle = source.vehicle
     target.service_date = source.service_date
@@ -455,6 +416,14 @@ def make_maintenance_return_note(source_name, target_doc=None):
 @frappe.whitelist()
 def make_purchase_order(source_name, target_doc=None):
 
+    def set_job_card_item_reference(source, target):
+        item_meta = frappe.get_meta("Purchase Order Item")
+        if not item_meta.get_field("job_card_item"):
+            return
+
+        for row in target.items or []:
+            row.job_card_item = source.name
+
     def append_labour_charge_item(source, target):
         service_charges = get_job_card_labour_charge_total(source, update_row_totals=False)
         if service_charges <= 0:
@@ -481,7 +450,9 @@ def make_purchase_order(source_name, target_doc=None):
         labour_rows = list(getattr(source, "labour_rates", None) or [])
         if labour_rows:
             service_templates = [
-                row.operation for row in labour_rows if getattr(row, "operation", None)
+                (getattr(row, "operation_done", None) or getattr(row, "operation", None))
+                for row in labour_rows
+                if (getattr(row, "operation_done", None) or getattr(row, "operation", None))
             ]
         else:
             service_templates = [
@@ -513,11 +484,18 @@ def make_purchase_order(source_name, target_doc=None):
 
     def set_missing_values(source, target):
         target.supplier = source.supplier
-        target.custom_job_card_link = source.name  # Link PO -> Job Card
+        # Link PO -> Job Card using whichever link field exists on Purchase Order.
+        if hasattr(target, "custom_job_card_link"):
+            target.custom_job_card_link = source.name
+        elif hasattr(target, "job_card_link"):
+            target.job_card_link = source.name
+        elif hasattr(target, "eah_job_card"):
+            target.eah_job_card = source.name
         target.cost_center = getattr(source, "custom_cost_center", None)
         if hasattr(target, "ignore_pricing_rule"):
             target.ignore_pricing_rule = 1
         append_labour_charge_item(source, target)
+        set_job_card_item_reference(source, target)
 
     doc = get_mapped_doc(
         "EAH Job Card",
@@ -597,33 +575,34 @@ def _format_purchase_order_integrity_rows(rows):
     ) or "None"
 
 
+def get_purchase_order_job_card_link(doc):
+    for fieldname in ("custom_job_card_link", "job_card_link", "eah_job_card"):
+        value = (getattr(doc, fieldname, None) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def validate_purchase_order_job_card_integrity(doc, method=None):
-    if not getattr(doc, "custom_job_card_link", None):
+    job_card_link = get_purchase_order_job_card_link(doc)
+    if not job_card_link:
         return
 
-    job_card = frappe.get_doc("EAH Job Card", doc.custom_job_card_link)
+    job_card = frappe.get_doc("EAH Job Card", job_card_link)
     expected_rows = get_expected_job_card_purchase_order_rows(job_card)
     current_rows = _get_purchase_order_integrity_rows(doc)
     expected_cost_center = (getattr(job_card, "custom_cost_center", None) or "").strip()
     current_cost_center = (getattr(doc, "cost_center", None) or "").strip()
+    expected_labour_charge = get_job_card_labour_charge_total(job_card, update_row_totals=False)
 
     if current_rows == expected_rows and current_cost_center == expected_cost_center:
         return
 
     frappe.throw(
-        "This Purchase Order was generated from "
-        f"<b>EAH Job Card {job_card.name}</b>. "
-        "Mapped item rows and parent Cost Center must remain identical to the Job Card. "
-        "Item Code, Qty, Rate, UOM, and Cost Center cannot be edited on this Purchase Order. "
-        "Update the Job Card and recreate the Purchase Order if changes are required."
-        "<br><br><b>Expected Rows</b><br>"
-        f"{_format_purchase_order_integrity_rows(expected_rows)}"
-        "<br><br><b>Expected Cost Center</b><br>"
-        f"{expected_cost_center or 'None'}"
-        "<br><br><b>Current Cost Center</b><br>"
-        f"{current_cost_center or 'None'}"
-        "<br><br><b>Current Rows</b><br>"
-        f"{_format_purchase_order_integrity_rows(current_rows)}",
+        "Please make sure the Labour Charge in this Purchase Order matches the Labour Charge in "
+        f"<b>EAH Job Card {job_card.name}</b> "
+        f"(<b>EAH Labour Charge: {expected_labour_charge:g}</b>). "
+        "If any update is needed, kindly adjust the EAH Job Card and create a new Purchase Order.",
         title="Job Card Integrity Error",
     )
 
@@ -688,21 +667,33 @@ def get_vehicle_maintenance_history(vehicle):
                 "parent": jc.name,
                 "parentfield": "labour_rates"
             },
-            pluck="operation"
+            pluck="operation_done"
         )
 
         if labour_templates:
             templates = labour_templates
         else:
-            # Backward compatibility for legacy rows.
-            templates = frappe.get_all(
-                "Job Card Template",
+            # Compatibility fallback for legacy child layouts storing operation directly.
+            legacy_labour_templates = frappe.get_all(
+                "Maintainance Tempelate",
                 filters={
                     "parent": jc.name,
-                    "parentfield": "service_task_templates"
+                    "parentfield": "labour_rates"
                 },
-                pluck="service_template"
+                pluck="operation"
             )
+            if legacy_labour_templates:
+                templates = legacy_labour_templates
+            else:
+            # Backward compatibility for legacy rows.
+                templates = frappe.get_all(
+                    "Job Card Template",
+                    filters={
+                        "parent": jc.name,
+                        "parentfield": "service_task_templates"
+                    },
+                    pluck="service_template"
+                )
 
         parts = frappe.get_all(
             "Supplied Parts",

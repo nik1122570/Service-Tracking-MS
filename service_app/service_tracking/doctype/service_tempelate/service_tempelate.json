@@ -1,15 +1,17 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:vehicle_part",
  "creation": "2026-03-13 16:41:18.938346",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "vehicle_part",
   "tempelate_name",
   "make",
-  "weight_class",
   "column_break_diu6",
+  "work",
   "hourly_rate",
   "maximum_hours",
   "section_break_vnie",
@@ -32,23 +34,15 @@
   },
   {
    "fieldname": "make",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "label": "Make",
-   "options": "\nHOWO\nSCANIA",
-   "reqd": 1
-  },
-  {
-   "fieldname": "weight_class",
-   "fieldtype": "Select",
-   "label": "Weight Class",
-   "options": "\n5 Tonnes\n10Tonnes\n15 Tonnes",
+   "options": "Vehicle Make",
    "reqd": 1
   },
   {
    "fieldname": "hourly_rate",
    "fieldtype": "Currency",
    "label": "Standard Flat Rate",
-   "non_negative": 1,
    "options": "currency",
    "reqd": 1
   },
@@ -78,16 +72,31 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "vehicle_part",
+   "fieldtype": "Link",
+   "label": "Vehicle Part ",
+   "options": "Service Work",
+   "unique": 1
+  },
+  {
+   "fieldname": "work",
+   "fieldtype": "Link",
+   "label": "Work",
+   "options": "Work Catalogue",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-15 18:24:39.393821",
+ "modified": "2026-04-21 20:09:17.166341",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Service Tempelate",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {

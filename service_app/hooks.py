@@ -44,7 +44,11 @@ app_license = "mit"
 
 # include js in doctype views
 doctype_js = {
-	"Purchase Order": "public/js/purchase_order.js"
+	"Purchase Order": "public/js/purchase_order.js",
+	"Item": "public/js/item.js",
+	"Vehicle": "public/js/vehicle.js",
+	"Item Price": "public/js/item_price.js",
+	"Supplier Quotation": "public/js/supplier_quotation.js"
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -140,8 +144,31 @@ doctype_js = {
 # Hook on document methods and events
 
 doc_events = {
+	"Item": {
+		"validate": "service_app.service_tracking.item.validate_spare_part_part_category"
+	},
+	"Vehicle": {
+		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
+	},
+	"Item Price": {
+		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
+	},
+	"Service Tempelate": {
+		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
+	},
+	"Maintenance Postion": {
+		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
+	},
+	"Supplier Quotation": {
+		"validate": "service_app.service_tracking.supplier_quotation.validate_supplier_quotation_duplicate_item_prices",
+		"on_submit": "service_app.service_tracking.supplier_quotation.sync_item_prices_from_supplier_quotation",
+		"on_update": "service_app.service_tracking.supplier_quotation.sync_item_prices_from_supplier_quotation"
+	},
 	"Purchase Order": {
-		"validate": "service_app.service_tracking.purchase_order.validate_purchase_order_source_integrity"
+		"validate": "service_app.service_tracking.purchase_order.validate_purchase_order_source_integrity",
+		"after_insert": "service_app.service_tracking.purchase_order.sync_job_card_purchase_order_link",
+		"on_submit": "service_app.service_tracking.purchase_order.sync_job_card_purchase_order_link",
+		"on_cancel": "service_app.service_tracking.purchase_order.clear_job_card_purchase_order_link"
 	},
 	"Sales Order": {
 		"validate": "service_app.service_tracking.sales_order.validate_sales_order_trip_revenue_allocations"

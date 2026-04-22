@@ -100,7 +100,12 @@ frappe.ui.form.on("EAH Job Card", {
 	},
 
 	supplier(frm) {
-		refresh_supplied_parts_rates(frm, { force: true });
+		sync_supplied_parts_price_list(frm, {
+			fetch_rates: true,
+			only_if_rate_missing: false,
+			clear_rates: !frm.doc.price_list
+		});
+		calculate_totals(frm);
 	},
 
 	vehicle(frm) {
@@ -161,6 +166,12 @@ frappe.ui.form.on("Maintainance Tempelate", {
 		calculate_totals(frm);
 	},
 
+	operation_done(frm, cdt, cdn) {
+		set_labour_row_total(cdt, cdn);
+		calculate_totals(frm);
+	},
+
+	// Backward compatibility for any legacy row layout still using operation directly.
 	operation(frm, cdt, cdn) {
 		set_labour_row_total(cdt, cdn);
 		calculate_totals(frm);
@@ -188,9 +199,10 @@ function set_supplied_parts_item_queries(frm) {
 	}
 
 	frm.fields_dict.supplied_parts.grid.get_field("item").get_query = () => ({
-		filters: {
-			item_group: "Spare Parts"
-		}
+		filters: [
+			["Item", "item_group", "=", "Spare Parts"],
+			["Item", "docstatus", "=", 1]
+		]
 	});
 }
 
@@ -205,10 +217,18 @@ function set_labour_rates_operation_query(frm) {
 		return;
 	}
 
-	frm.fields_dict.labour_rates.grid.get_field("operation").get_query = () => {
+	const grid = frm.fields_dict.labour_rates.grid;
+	const operation_field =
+		(grid.get_field("operation_done") && "operation_done")
+		|| (grid.get_field("operation") && "operation")
+		|| null;
+	if (!operation_field) {
+		return;
+	}
+
+	grid.get_field(operation_field).get_query = () => {
 		const make = get_job_card_make(frm);
-		const weightClass = get_job_card_weight_class(frm);
-		if (!make || !weightClass) {
+		if (!make) {
 			return {
 				filters: {
 					name: "__NO_MATCHING_TEMPLATE__"
@@ -218,8 +238,7 @@ function set_labour_rates_operation_query(frm) {
 
 		const filters = {
 			docstatus: 1,
-			make,
-			weight_class: weightClass
+			make
 		};
 
 		return { filters };

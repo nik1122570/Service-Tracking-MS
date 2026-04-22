@@ -7,7 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "source_type",
   "maintenance_return_note",
+  "manual_reason",
   "eah_job_card",
   "vehicle",
   "column_break_header",
@@ -31,26 +33,42 @@
    "reqd": 1
   },
   {
+   "default": "From Maintenance Return Note",
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "label": "Source Type",
+   "options": "From Maintenance Return Note\nManual",
+   "reqd": 1
+  },
+  {
    "fieldname": "maintenance_return_note",
    "fieldtype": "Link",
    "label": "Maintenance Return Note",
    "options": "Maintenance Return Note",
-   "read_only": 1,
-   "reqd": 1
+   "depends_on": "eval:doc.source_type === 'From Maintenance Return Note'",
+   "mandatory_depends_on": "eval:doc.source_type === 'From Maintenance Return Note'"
+  },
+  {
+   "depends_on": "eval:doc.source_type === 'Manual'",
+   "fieldname": "manual_reason",
+   "fieldtype": "Select",
+   "label": "Manual Reason",
+   "mandatory_depends_on": "eval:doc.source_type === 'Manual'",
+   "options": "Reconciliation\nOpening Stock\nAdjustment"
   },
   {
    "fieldname": "eah_job_card",
    "fieldtype": "Link",
    "label": "EAH Job Card",
    "options": "EAH Job Card",
-   "read_only": 1
+   "read_only_depends_on": "eval:doc.source_type === 'From Maintenance Return Note'"
   },
   {
    "fieldname": "vehicle",
    "fieldtype": "Link",
    "label": "Vehicle",
    "options": "Vehicle",
-   "read_only": 1
+   "read_only_depends_on": "eval:doc.source_type === 'From Maintenance Return Note'"
   },
   {
    "fieldname": "column_break_header",
