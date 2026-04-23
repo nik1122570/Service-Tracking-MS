@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestServiceWork(FrappeTestCase):
+class TestTyreRequest(FrappeTestCase):
 	pass

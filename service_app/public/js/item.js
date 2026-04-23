@@ -3,7 +3,7 @@ frappe.ui.form.on("Item", {
 		set_make_query(frm);
 		set_warranty_field_read_only(frm);
 		toggle_part_category_required(frm);
-		toggle_make_required(frm);
+		toggle_make_field_state(frm);
 		sync_default_price_list_from_make(frm, { force: false });
 		sync_warranty_from_part_category(frm, { force: false });
 	},
@@ -12,14 +12,14 @@ frappe.ui.form.on("Item", {
 		set_make_query(frm);
 		set_warranty_field_read_only(frm);
 		toggle_part_category_required(frm);
-		toggle_make_required(frm);
+		toggle_make_field_state(frm);
 		sync_default_price_list_from_make(frm, { force: false });
 		sync_warranty_from_part_category(frm, { force: false });
 	},
 
 	item_group(frm) {
 		toggle_part_category_required(frm);
-		toggle_make_required(frm);
+		toggle_make_field_state(frm);
 		sync_default_price_list_from_make(frm, { force: true });
 	},
 
@@ -32,7 +32,7 @@ frappe.ui.form.on("Item", {
 	},
 
 	is_universal(frm) {
-		toggle_make_required(frm);
+		toggle_make_field_state(frm);
 		sync_default_price_list_from_make(frm, { force: true });
 	}
 });
@@ -67,10 +67,13 @@ function is_universal_item(frm) {
 	return cint(frm.doc.is_universal || 0) === 1;
 }
 
-function toggle_make_required(frm) {
+function toggle_make_field_state(frm) {
 	if (!frm.fields_dict || !frm.fields_dict.make) {
 		return;
 	}
+
+	const isSpareParts = is_spare_parts_item(frm);
+	frm.toggle_display("make", isSpareParts);
 
 	const required = is_spare_parts_item(frm) && !is_universal_item(frm);
 	frm.toggle_reqd("make", required);

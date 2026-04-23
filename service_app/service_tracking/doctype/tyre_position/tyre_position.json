@@ -1,45 +1,30 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:service_task",
- "creation": "2026-04-21 19:56:07.303258",
+ "autoname": "field:position",
+ "creation": "2026-04-23 19:26:08.116801",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_wdc7",
-  "service_task",
-  "amended_from"
+  "position"
  ],
  "fields": [
   {
-   "fieldname": "section_break_wdc7",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "service_task",
+   "fieldname": "position",
    "fieldtype": "Data",
-   "label": "Service Task",
+   "in_list_view": 1,
+   "label": "Position",
+   "reqd": 1,
    "unique": 1
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
-   "no_copy": 1,
-   "options": "Service Work",
-   "print_hide": 1,
-   "read_only": 1,
-   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "is_submittable": 1,
  "links": [],
- "modified": "2026-04-21 19:56:57.278379",
+ "modified": "2026-04-23 19:26:51.087555",
  "modified_by": "Administrator",
  "module": "Service Tracking",
- "name": "Service Work",
+ "name": "Tyre Position",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
@@ -53,7 +38,6 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

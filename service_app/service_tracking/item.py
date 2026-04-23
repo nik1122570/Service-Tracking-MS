@@ -85,6 +85,9 @@ def _validate_spare_part_make_requirement(doc):
 
 
 def _validate_item_make_enabled(doc):
+    if not _is_spare_parts_item(getattr(doc, "item_group", None)):
+        return
+
     if not doc.meta.get_field("make"):
         return
 

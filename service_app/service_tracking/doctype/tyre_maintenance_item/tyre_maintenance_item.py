@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class MaintenancePostion(Document):
+class TyreMaintenanceItem(Document):
 	pass

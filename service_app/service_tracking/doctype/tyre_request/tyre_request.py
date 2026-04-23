@@ -1,12 +1,13 @@
 import frappe
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import flt, getdate, today
+from frappe.utils import cstr, flt, getdate, today
 
 from service_app.service_tracking.doctype.eah_job_card.eah_job_card import get_item_price_rate
 
 
 TYRE_ITEM_GROUP = "Tyres"
+REQUEST_TYPE_TYRE_MAINTENANCE = "Tyre Maintenance"
 
 
 class TyreRequest(Document):
@@ -14,28 +15,37 @@ class TyreRequest(Document):
     def validate(self):
         self.ensure_request_fields()
         self.sync_vehicle_data()
-        self.ensure_tyre_items()
+        self.ensure_request_items()
         self.validate_outstanding_receipt_control()
         self.calculate_totals()
 
     def ensure_request_fields(self):
-        required_fields = {
-            "vehicle": "Vehicle",
-            "request_date": "Request Date",
-            "supplier": "Supplier",
-            "price_list": "Price List",
-            "project": "Project",
-            "cost_center": "Cost Center",
-            "odometer_reading": "Odometer Reading",
-        }
+        required_fields = (
+            ("vehicle", "Vehicle"),
+            ("request_date", "Request Date"),
+            ("supplier", "Supplier"),
+            ("price_list", "Price List"),
+            ("project", "Project"),
+            ("cost_center", "Cost Center"),
+            ("odometer_reading", "Odometer Reading"),
+        )
 
-        for fieldname, label in required_fields.items():
+        for fieldname, label in required_fields:
+            if not self.meta.get_field(fieldname):
+                continue
             if not getattr(self, fieldname, None):
                 frappe.throw(f"{label} is required.")
 
     def sync_vehicle_data(self):
         if self.vehicle:
             self.license_plate = frappe.db.get_value("Vehicle", self.vehicle, "license_plate")
+
+    def ensure_request_items(self):
+        if self.is_tyre_maintenance_request():
+            self.ensure_tyre_maintenance_items()
+            return
+
+        self.ensure_tyre_items()
 
     def ensure_tyre_items(self):
         if not self.tyre_items:
@@ -93,7 +103,28 @@ class TyreRequest(Document):
                     f"of {approved_rate} in {self.price_list}."
                 )
 
+    def ensure_tyre_maintenance_items(self):
+        if not self.tyre_maintenance:
+            frappe.throw("At least one Tyre Maintenance row is required.")
+
+        if not self.tyre_maintenance_item:
+            frappe.throw("Tyre Maintenance Item is required for Tyre Maintenance requests.")
+
+        for index, row in enumerate(self.tyre_maintenance, start=1):
+            if not row.tyre_position:
+                frappe.throw(f"Row {index}: Tyre Position is required.")
+
+            if not row.select_fpse:
+                frappe.throw(f"Row {index}: Operation is required.")
+
+            row.rate = flt(row.rate)
+            if row.rate <= 0:
+                frappe.throw(f"Row {index}: Rate must be greater than zero.")
+
     def validate_outstanding_receipt_control(self):
+        if self.is_tyre_maintenance_request():
+            return
+
         outstanding_request = get_outstanding_tyre_request_for_vehicle(
             self.vehicle,
             self.request_date,
@@ -119,8 +150,16 @@ class TyreRequest(Document):
         )
 
     def calculate_totals(self):
+        if self.is_tyre_maintenance_request():
+            self.total_qty = len(self.tyre_maintenance or [])
+            self.total_purchase_amount = sum(flt(row.rate) for row in self.tyre_maintenance)
+            return
+
         self.total_qty = sum(flt(row.qty) for row in self.tyre_items)
         self.total_purchase_amount = sum(flt(row.qty) * flt(row.rate) for row in self.tyre_items)
+
+    def is_tyre_maintenance_request(self):
+        return cstr(getattr(self, "request_type", "")).strip() == REQUEST_TYPE_TYRE_MAINTENANCE
 
 
 @frappe.whitelist()
@@ -141,6 +180,9 @@ def make_purchase_order(source_name, target_doc=None):
         frappe.throw(
             f"Purchase Order {existing_purchase_order} already exists for Tyre Request {source.name}."
         )
+
+    if source.is_tyre_maintenance_request():
+        return make_tyre_maintenance_purchase_order(source, target_doc)
 
     def set_missing_values(source_doc, target_doc):
         target_doc.supplier = source_doc.supplier
@@ -179,11 +221,60 @@ def make_purchase_order(source_name, target_doc=None):
     )
 
 
+def make_tyre_maintenance_purchase_order(source, target_doc=None):
+    if not source.tyre_maintenance_item:
+        frappe.throw(
+            "Set Tyre Maintenance Item before creating a Purchase Order for Tyre Maintenance."
+        )
+
+    total_amount = flt(source.total_purchase_amount)
+    if total_amount <= 0:
+        frappe.throw("Total Purchase Amount must be greater than zero.")
+
+    target = target_doc or frappe.new_doc("Purchase Order")
+    target.supplier = source.supplier
+    target.transaction_date = source.request_date or today()
+    target.project = source.project
+    target.cost_center = source.cost_center
+    target.custom_tyre_request_link = source.name
+
+    item_details = frappe.db.get_value(
+        "Item",
+        source.tyre_maintenance_item,
+        ["item_name", "stock_uom"],
+        as_dict=True,
+    )
+    if not item_details:
+        frappe.throw(f"Tyre Maintenance Item {source.tyre_maintenance_item} was not found.")
+
+    target.append(
+        "items",
+        {
+            "item_code": source.tyre_maintenance_item,
+            "item_name": item_details.item_name,
+            "qty": 1,
+            "uom": item_details.stock_uom,
+            "rate": total_amount,
+            "description": build_tyre_maintenance_purchase_description(source),
+            "project": source.project,
+            "cost_center": source.cost_center,
+            "schedule_date": source.request_date or today(),
+        },
+    )
+
+    return target
+
+
 @frappe.whitelist()
 def make_tyre_receiving_note(source_name, target_doc=None):
     source = frappe.get_doc("Tyre Request", source_name)
     if source.docstatus != 1:
         frappe.throw("Only submitted Tyre Requests can create a Tyre Receiving Note.")
+
+    if source.is_tyre_maintenance_request():
+        frappe.throw(
+            "Tyre Receiving Note is only applicable for New Tyre Purchase requests."
+        )
 
     existing_receiving_note = frappe.db.get_value(
         "Tyre Receiving Note",
@@ -318,6 +409,25 @@ def build_tyre_purchase_description(row):
     return "\n".join(details)
 
 
+def build_tyre_maintenance_purchase_description(tyre_request):
+    details = ["Tyre Maintenance Charges"]
+    for index, row in enumerate(tyre_request.tyre_maintenance or [], start=1):
+        line_parts = []
+        if row.tyre_position:
+            line_parts.append(f"Position: {row.tyre_position}")
+        if row.select_fpse:
+            line_parts.append(f"Operation: {row.select_fpse}")
+        if row.tyre_brand:
+            line_parts.append(f"Brand: {row.tyre_brand}")
+        if flt(row.rate):
+            line_parts.append(f"Rate: {flt(row.rate):g}")
+
+        line_text = " | ".join(line_parts) if line_parts else "Tyre maintenance operation"
+        details.append(f"{index}. {line_text}")
+
+    return "\n".join(details)
+
+
 def _normalize_tyre_purchase_order_integrity_row(
     item_code,
     qty,
@@ -341,6 +451,33 @@ def _normalize_tyre_purchase_order_integrity_row(
 
 
 def get_expected_tyre_request_purchase_order_rows(tyre_request):
+    if tyre_request.is_tyre_maintenance_request():
+        maintenance_item_code = cstr(getattr(tyre_request, "tyre_maintenance_item", "")).strip()
+        if not maintenance_item_code:
+            return []
+
+        maintenance_item = frappe.db.get_value(
+            "Item",
+            maintenance_item_code,
+            ["name", "stock_uom"],
+            as_dict=True,
+        )
+        if not maintenance_item:
+            return []
+
+        return [
+            _normalize_tyre_purchase_order_integrity_row(
+                maintenance_item.name,
+                1,
+                tyre_request.total_purchase_amount,
+                maintenance_item.stock_uom,
+                build_tyre_maintenance_purchase_description(tyre_request),
+                tyre_request.project,
+                tyre_request.cost_center,
+                tyre_request.request_date,
+            )
+        ]
+
     return sorted(
         _normalize_tyre_purchase_order_integrity_row(
             row.item,

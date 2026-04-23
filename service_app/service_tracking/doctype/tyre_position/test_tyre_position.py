@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestMaintenancePostion(FrappeTestCase):
+class TestTyrePosition(FrappeTestCase):
 	pass

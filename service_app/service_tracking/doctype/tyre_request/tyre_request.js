@@ -8,11 +8,13 @@ frappe.ui.form.on("Tyre Request", {
 	refresh(frm) {
 		set_tyre_item_queries(frm);
 		set_tyre_request_field_state(frm);
-		sync_tyre_item_price_list(frm, {
-			fetch_rates: true,
-			only_if_rate_missing: true,
-			clear_rates: !frm.doc.price_list
-		});
+		if (is_new_tyre_purchase_request(frm)) {
+			sync_tyre_item_price_list(frm, {
+				fetch_rates: true,
+				only_if_rate_missing: true,
+				clear_rates: !frm.doc.price_list
+			});
+		}
 		calculate_tyre_request_totals(frm);
 
 		if (frm.doc.docstatus === 1) {
@@ -23,16 +25,33 @@ frappe.ui.form.on("Tyre Request", {
 				});
 			}, "Create");
 
-			frm.add_custom_button("Tyre Receiving Note", () => {
-				frappe.model.open_mapped_doc({
-					method: "service_app.service_tracking.doctype.tyre_request.tyre_request.make_tyre_receiving_note",
-					frm: frm
-				});
-			}, "Create");
+			if (is_new_tyre_purchase_request(frm)) {
+				frm.add_custom_button("Tyre Receiving Note", () => {
+					frappe.model.open_mapped_doc({
+						method: "service_app.service_tracking.doctype.tyre_request.tyre_request.make_tyre_receiving_note",
+						frm: frm
+					});
+				}, "Create");
+			}
+		}
+	},
+
+	request_type(frm) {
+		set_tyre_request_field_state(frm);
+		calculate_tyre_request_totals(frm);
+		if (is_new_tyre_purchase_request(frm)) {
+			sync_tyre_item_price_list(frm, {
+				fetch_rates: true,
+				only_if_rate_missing: true,
+				clear_rates: !frm.doc.price_list
+			});
 		}
 	},
 
 	price_list(frm) {
+		if (!is_new_tyre_purchase_request(frm)) {
+			return;
+		}
 		sync_tyre_item_price_list(frm, {
 			fetch_rates: true,
 			clear_rates: !frm.doc.price_list
@@ -41,7 +60,18 @@ frappe.ui.form.on("Tyre Request", {
 	},
 
 	supplier(frm) {
+		if (!is_new_tyre_purchase_request(frm)) {
+			return;
+		}
 		refresh_tyre_item_rates(frm, { force: true });
+	},
+
+	tyre_maintenance_add(frm) {
+		calculate_tyre_request_totals(frm);
+	},
+
+	tyre_maintenance_remove(frm) {
+		calculate_tyre_request_totals(frm);
 	}
 });
 
@@ -73,6 +103,12 @@ frappe.ui.form.on("Tyre Request Item", {
 	}
 });
 
+frappe.ui.form.on("Tyre Maintenance Item", {
+	rate(frm) {
+		calculate_tyre_request_totals(frm);
+	}
+});
+
 function set_tyre_item_queries(frm) {
 	if (!frm.fields_dict.tyre_items || !frm.fields_dict.tyre_items.grid) {
 		return;
@@ -86,12 +122,33 @@ function set_tyre_item_queries(frm) {
 }
 
 function set_tyre_request_field_state(frm) {
+	const isMaintenance = is_tyre_maintenance_request(frm);
+
+	frm.toggle_display("tyre_maintenance", isMaintenance);
+	frm.toggle_display("tyre_maintenance_item", isMaintenance);
+	frm.toggle_display("tyre_items", !isMaintenance);
+
+	frm.set_df_property("tyre_maintenance", "reqd", isMaintenance ? 1 : 0);
+	frm.set_df_property("tyre_items", "reqd", isMaintenance ? 0 : 1);
+
 	if (frm.fields_dict.tyre_items && frm.fields_dict.tyre_items.grid) {
 		frm.fields_dict.tyre_items.grid.update_docfield_property("price_list", "read_only", 1);
 	}
 }
 
 function calculate_tyre_request_totals(frm) {
+	if (is_tyre_maintenance_request(frm)) {
+		const total_operations = (frm.doc.tyre_maintenance || []).length;
+		const total_maintenance_amount = (frm.doc.tyre_maintenance || []).reduce(
+			(total, row) => total + flt(row.rate),
+			0
+		);
+
+		set_tyre_request_total_field_value(frm, "total_qty", total_operations);
+		set_tyre_request_total_field_value(frm, "total_purchase_amount", total_maintenance_amount);
+		return;
+	}
+
 	const total_qty = (frm.doc.tyre_items || []).reduce(
 		(total, row) => total + flt(row.qty),
 		0
@@ -254,4 +311,12 @@ function validate_tyre_rate_limit(frm, cdt, cdn) {
 			}
 		}
 	});
+}
+
+function is_tyre_maintenance_request(frm) {
+	return (frm.doc.request_type || "").trim() === "Tyre Maintenance";
+}
+
+function is_new_tyre_purchase_request(frm) {
+	return (frm.doc.request_type || "").trim() !== "Tyre Maintenance";
 }

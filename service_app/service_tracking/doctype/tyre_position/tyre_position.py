@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class ServiceWork(Document):
+class TyrePosition(Document):
 	pass
