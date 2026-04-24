@@ -1,15 +1,11 @@
 frappe.ui.form.on("EAH Job Card", {
 	setup(frm) {
-		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
-		set_labour_rates_operation_query(frm);
 		calculate_totals(frm);
 	},
 
 	refresh(frm) {
-		set_supplied_parts_item_queries(frm);
 		set_supplied_parts_field_state(frm);
-		set_labour_rates_operation_query(frm);
 		sync_supplied_parts_price_list(frm, {
 			fetch_rates: true,
 			only_if_rate_missing: true,
@@ -106,26 +102,6 @@ frappe.ui.form.on("EAH Job Card", {
 			clear_rates: !frm.doc.price_list
 		});
 		calculate_totals(frm);
-	},
-
-	vehicle(frm) {
-		set_labour_rates_operation_query(frm);
-	},
-
-	make(frm) {
-		set_labour_rates_operation_query(frm);
-	},
-
-	weight_class(frm) {
-		set_labour_rates_operation_query(frm);
-	},
-
-	custom_make(frm) {
-		set_labour_rates_operation_query(frm);
-	},
-
-	custom_weight_class(frm) {
-		set_labour_rates_operation_query(frm);
 	}
 });
 
@@ -193,72 +169,10 @@ frappe.ui.form.on("Maintainance Tempelate", {
 	}
 });
 
-function set_supplied_parts_item_queries(frm) {
-	if (!frm.fields_dict.supplied_parts || !frm.fields_dict.supplied_parts.grid) {
-		return;
-	}
-
-	frm.fields_dict.supplied_parts.grid.get_field("item").get_query = () => ({
-		filters: [
-			["Item", "item_group", "=", "Spare Parts"],
-			["Item", "docstatus", "=", 1]
-		]
-	});
-}
-
 function set_supplied_parts_field_state(frm) {
 	if (frm.fields_dict.supplied_parts && frm.fields_dict.supplied_parts.grid) {
 		frm.fields_dict.supplied_parts.grid.update_docfield_property("price_list", "read_only", 1);
 	}
-}
-
-function set_labour_rates_operation_query(frm) {
-	if (!frm.fields_dict.labour_rates || !frm.fields_dict.labour_rates.grid) {
-		return;
-	}
-
-	const grid = frm.fields_dict.labour_rates.grid;
-	const operation_field =
-		(grid.get_field("operation_done") && "operation_done")
-		|| (grid.get_field("operation") && "operation")
-		|| null;
-	if (!operation_field) {
-		return;
-	}
-
-	grid.get_field(operation_field).get_query = () => {
-		const make = get_job_card_make(frm);
-		if (!make) {
-			return {
-				filters: {
-					name: "__NO_MATCHING_TEMPLATE__"
-				}
-			};
-		}
-
-		const filters = {
-			docstatus: 1,
-			make
-		};
-
-		return { filters };
-	};
-}
-
-function get_job_card_make(frm) {
-	return (
-		frm.doc.make
-		|| frm.doc.custom_make
-		|| ""
-	);
-}
-
-function get_job_card_weight_class(frm) {
-	return (
-		frm.doc.weight_class
-		|| frm.doc.custom_weight_class
-		|| ""
-	);
 }
 
 function calculate_totals(frm) {

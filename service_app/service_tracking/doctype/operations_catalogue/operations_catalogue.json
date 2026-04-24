@@ -2,6 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
+ "autoname": "field:operation_name",
  "creation": "2026-04-12 02:42:24.398727",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -15,7 +16,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Operation Name",
-   "reqd": 1
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "amended_from",
@@ -32,10 +34,11 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-12 02:45:04.338392",
+ "modified": "2026-04-24 09:47:34.796126",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Operations Catalogue",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
