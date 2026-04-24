@@ -97,9 +97,9 @@ def _get_invoice_query_context():
                 "Purchase Order",
                 ("custom_job_card_link", "job_card_link", "eah_job_card"),
             ),
-            "jc_labour_item_field": _get_first_available_field(
-                "EAH Job Card",
-                ("custom_default_labour_item", "default_labour_item"),
+            "settings_default_labour_item": _get_single_doctype_value_if_field_exists(
+                "Service App Settings",
+                ("default_labour_item", "custom_default_labour_item"),
             ),
         }
     )
@@ -111,6 +111,39 @@ def _get_first_available_field(doctype, fieldnames):
         if fieldname in columns:
             return fieldname
     return None
+
+
+def _get_single_doctype_value_if_field_exists(doctype, fieldnames):
+    if not doctype or not fieldnames:
+        return ""
+
+    if not frappe.db.exists("DocType", doctype):
+        return ""
+
+    meta = frappe.get_meta(doctype)
+    fieldname = None
+
+    if meta.issingle:
+        for candidate in fieldnames:
+            if meta.get_field(candidate):
+                fieldname = candidate
+                break
+    else:
+        columns = set(frappe.db.get_table_columns(doctype))
+        for candidate in fieldnames:
+            if candidate in columns:
+                fieldname = candidate
+                break
+
+    if not fieldname:
+        return ""
+
+    value = (
+        frappe.db.get_single_value(doctype, fieldname)
+        if meta.issingle
+        else frappe.db.get_value(doctype, doctype, fieldname)
+    )
+    return (value or "").strip() if isinstance(value, str) else value
 
 
 def _get_invoice_conditions(filters, query_context, from_date=None, to_date=None):
@@ -160,14 +193,13 @@ def _get_period_summary(filters):
     query_context = _get_invoice_query_context()
     conditions, values = _get_invoice_conditions(query_context=query_context, filters=filters, from_date=filters.from_date, to_date=filters.to_date)
     invoice_join_clause = _get_invoice_join_clause(query_context)
-    labour_item_field = query_context.get("jc_labour_item_field")
+    default_labour_item = (query_context.get("settings_default_labour_item") or "").strip()
     labour_spend_expression = (
         f"""
             COALESCE(
                 SUM(
                     CASE
-                        WHEN COALESCE(jc.`{labour_item_field}`, '') != ''
-                         AND pii.item_code = jc.`{labour_item_field}`
+                        WHEN pii.item_code = %(default_labour_item)s
                         THEN pii.base_net_amount
                         ELSE 0
                     END
@@ -175,9 +207,12 @@ def _get_period_summary(filters):
                 0
             ) AS labour_spend,
         """
-        if labour_item_field
+        if default_labour_item
         else "0 AS labour_spend,"
     )
+    if default_labour_item:
+        values["default_labour_item"] = default_labour_item
+
     result = frappe.db.sql(
         f"""
         SELECT
@@ -565,7 +600,7 @@ def _build_summary_cards(filters, summary, previous_summary, forecast, due_soon_
             "fieldtype": "Currency",
             "tone": "neutral",
             "trend": _get_share_text(summary.labour_spend, summary.total_spend, _("of billed maintenance spend")),
-            "note": _("Mapped from the default labour item on linked job cards."),
+            "note": _("Mapped from Purchase Invoice rows matching the Default Labour Item in Service App Settings."),
             "route": purchase_invoice_route,
             "route_options": purchase_invoice_route_options,
         },
