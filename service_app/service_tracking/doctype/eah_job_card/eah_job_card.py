@@ -5,7 +5,7 @@ from frappe.utils import add_days, cint, date_diff, flt, getdate, today
 from service_app.service_tracking.vehicle_make_controls import ensure_vehicle_make_enabled
 
 
-# Warn when another submitted job card exists within the last 30 days.
+# Fallback warning interval when Service App Settings is not configured.
 RECENT_SERVICE_WARNING_DAYS = 30
 
 
@@ -229,6 +229,10 @@ class EAHJobCard(Document):
     def check_recent_vehicle_service(self):
         warnings = []
         reference_date = getdate(self.service_date or today())
+        service_interval_days = get_vehicle_servicing_interval_days()
+        if service_interval_days <= 0:
+            return warnings
+
         filters = {
             "vehicle": self.vehicle,
             "docstatus": 1,
@@ -250,7 +254,7 @@ class EAHJobCard(Document):
             last_service_date = getdate(last_service[0].service_date)
             days_since_last_service = date_diff(reference_date, last_service_date)
 
-            if 0 <= days_since_last_service <= RECENT_SERVICE_WARNING_DAYS:
+            if 0 <= days_since_last_service <= service_interval_days:
                 warnings.append(
                     "Vehicle was last serviced on "
                     f"{last_service_date} ({days_since_last_service} days ago)."
@@ -685,6 +689,21 @@ def get_default_labour_item_for_job_card(job_card):
         "Service App Settings",
         ("default_labour_item", "custom_default_labour_item"),
     )
+
+
+def get_vehicle_servicing_interval_days():
+    configured_value = _get_single_doctype_value_if_field_exists(
+        "Service App Settings",
+        ("vehicle_servicing_interval", "custom_vehicle_servicing_interval"),
+    )
+    if configured_value in (None, ""):
+        return RECENT_SERVICE_WARNING_DAYS
+
+    interval_days = cint(flt(configured_value))
+    if interval_days <= 0:
+        return RECENT_SERVICE_WARNING_DAYS
+
+    return interval_days
 
 
 def _get_first_available_doctype_field(doctype, fieldnames):

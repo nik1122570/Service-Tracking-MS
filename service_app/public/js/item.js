@@ -1,6 +1,7 @@
 frappe.ui.form.on("Item", {
 	setup(frm) {
 		set_make_query(frm);
+		ensure_warranty_field_visibility(frm);
 		set_warranty_field_read_only(frm);
 		toggle_part_category_required(frm);
 		toggle_make_field_state(frm);
@@ -10,6 +11,7 @@ frappe.ui.form.on("Item", {
 
 	refresh(frm) {
 		set_make_query(frm);
+		ensure_warranty_field_visibility(frm);
 		set_warranty_field_read_only(frm);
 		toggle_part_category_required(frm);
 		toggle_make_field_state(frm);
@@ -84,6 +86,15 @@ function set_warranty_field_read_only(frm) {
 	candidates.forEach((fieldname) => {
 		if (frm.fields_dict && frm.fields_dict[fieldname]) {
 			frm.set_df_property(fieldname, "read_only", 1);
+		}
+	});
+}
+
+function ensure_warranty_field_visibility(frm) {
+	const candidates = ["warranty_period", "warranty_period_in_days", "warranty_period__in_days"];
+	candidates.forEach((fieldname) => {
+		if (frm.fields_dict && frm.fields_dict[fieldname]) {
+			frm.set_df_property(fieldname, "hidden", 0);
 		}
 	});
 }

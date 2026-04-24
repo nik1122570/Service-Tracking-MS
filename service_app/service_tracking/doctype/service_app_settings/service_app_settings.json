@@ -11,7 +11,8 @@
   "warranty_period_for_second_hand_part",
   "warranty_period_for_electrical_part",
   "warranty_period_for_both",
-  "default_labour_item"
+  "default_labour_item",
+  "vehicle_servicing_interval"
  ],
  "fields": [
   {
@@ -52,13 +53,19 @@
    "fieldtype": "Link",
    "label": "Default Labour Item",
    "options": "Item"
+  },
+  {
+   "description": "This is the Limit of the grace period between Servicing periods of Vehicles\n",
+   "fieldname": "vehicle_servicing_interval",
+   "fieldtype": "Float",
+   "label": "Vehicle Servicing Interval"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-24 13:23:43.939157",
+ "modified": "2026-04-24 15:56:55.557477",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Service App Settings",
