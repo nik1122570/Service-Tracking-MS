@@ -50,6 +50,57 @@ doctype_js = {
 	"Item Price": "public/js/item_price.js",
 	"Supplier Quotation": "public/js/supplier_quotation.js"
 }
+
+STANDARD_CUSTOMIZED_DOCTYPES = [
+	"Address",
+	"Communication",
+	"Contact",
+	"Customer",
+	"Delivery Note",
+	"Delivery Note Item",
+	"Email Account",
+	"Employee",
+	"Item",
+	"Item Barcode",
+	"Job Card",
+	"Material Request",
+	"POS Invoice",
+	"POS Invoice Item",
+	"Packed Item",
+	"Pick List",
+	"Print Settings",
+	"Purchase Invoice",
+	"Purchase Invoice Item",
+	"Purchase Order",
+	"Purchase Receipt",
+	"Purchase Receipt Item",
+	"Quotation",
+	"Sales Invoice",
+	"Sales Invoice Item",
+	"Sales Order",
+	"Stock Entry",
+	"Stock Entry Detail",
+	"Stock Reconciliation",
+	"Stock Reconciliation Item",
+	"Supplier",
+	"Supplier Quotation",
+]
+
+# Export standard ERPNext doctype customizations so they deploy to new sites.
+fixtures = [
+	{
+		"dt": "Custom Field",
+		"filters": [
+			["dt", "in", STANDARD_CUSTOMIZED_DOCTYPES]
+		]
+	},
+	{
+		"dt": "Property Setter",
+		"filters": [
+			["doc_type", "in", STANDARD_CUSTOMIZED_DOCTYPES]
+		]
+	},
+]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
