@@ -415,6 +415,18 @@ def make_maintenance_return_note(source_name, target_doc=None):
 
 @frappe.whitelist()
 def make_purchase_order(source_name, target_doc=None):
+    source = frappe.get_doc("EAH Job Card", source_name)
+
+    if source.docstatus != 1:
+        frappe.throw("Only submitted EAH Job Cards can create a Purchase Order.")
+
+    existing_purchase_orders = get_active_purchase_orders_for_job_card(source.name)
+    if existing_purchase_orders:
+        frappe.throw(
+            "Purchase Order already exists for this EAH Job Card: "
+            f"{', '.join(existing_purchase_orders)}. "
+            "Please use the existing Purchase Order to avoid duplicate purchases."
+        )
 
     def set_job_card_item_reference(source, target):
         item_meta = frappe.get_meta("Purchase Order Item")
@@ -485,13 +497,10 @@ def make_purchase_order(source_name, target_doc=None):
 
     def set_missing_values(source, target):
         target.supplier = source.supplier
-        # Link PO -> Job Card using whichever link field exists on Purchase Order.
-        if hasattr(target, "custom_job_card_link"):
-            target.custom_job_card_link = source.name
-        elif hasattr(target, "job_card_link"):
-            target.job_card_link = source.name
-        elif hasattr(target, "eah_job_card"):
-            target.eah_job_card = source.name
+        # Link PO -> Job Card across all known compatibility fields.
+        for fieldname in ("eah_job_card", "job_card_link", "custom_job_card_link"):
+            if hasattr(target, fieldname):
+                setattr(target, fieldname, source.name)
         target.cost_center = getattr(source, "custom_cost_center", None)
         if hasattr(target, "ignore_pricing_rule"):
             target.ignore_pricing_rule = 1
@@ -578,11 +587,74 @@ def _format_purchase_order_integrity_rows(rows):
 
 
 def get_purchase_order_job_card_link(doc):
-    for fieldname in ("custom_job_card_link", "job_card_link", "eah_job_card"):
+    for fieldname in ("eah_job_card", "job_card_link", "custom_job_card_link"):
         value = (getattr(doc, fieldname, None) or "").strip()
         if value:
             return value
     return ""
+
+
+def _get_existing_doctype_fields(doctype, candidate_fields):
+    if not doctype or not candidate_fields:
+        return []
+
+    if not frappe.db.exists("DocType", doctype):
+        return []
+
+    existing_fields = []
+    meta = frappe.get_meta(doctype)
+
+    if meta.issingle:
+        for fieldname in candidate_fields:
+            if meta.get_field(fieldname):
+                existing_fields.append(fieldname)
+        return existing_fields
+
+    try:
+        columns = set(frappe.db.get_table_columns(doctype))
+    except Exception:
+        columns = set()
+
+    for fieldname in candidate_fields:
+        if fieldname in columns:
+            existing_fields.append(fieldname)
+
+    return existing_fields
+
+
+def get_active_purchase_orders_for_job_card(job_card_name):
+    if not job_card_name:
+        return []
+
+    matching_purchase_orders = set()
+    link_fields = _get_existing_doctype_fields(
+        "Purchase Order",
+        ("eah_job_card", "job_card_link", "custom_job_card_link"),
+    )
+
+    for link_field in link_fields:
+        names = frappe.get_all(
+            "Purchase Order",
+            filters={
+                "docstatus": ["<", 2],
+                link_field: job_card_name,
+            },
+            pluck="name",
+        )
+        matching_purchase_orders.update(names or [])
+
+    # Fallback to the back-link stored on EAH Job Card, if available.
+    job_card_purchase_order = frappe.db.get_value("EAH Job Card", job_card_name, "purchase_order")
+    if job_card_purchase_order and frappe.db.exists(
+        "Purchase Order",
+        {
+            "name": job_card_purchase_order,
+            "docstatus": ["<", 2],
+        },
+    ):
+        matching_purchase_orders.add(job_card_purchase_order)
+
+    return sorted(matching_purchase_orders)
 
 
 def _get_single_doctype_value_if_field_exists(doctype, fieldnames):

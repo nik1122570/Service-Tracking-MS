@@ -27,13 +27,15 @@ def sync_job_card_purchase_order_link(doc, method=None):
     if not frappe.db.exists("EAH Job Card", job_card_link):
         return
 
-    frappe.db.set_value(
-        "EAH Job Card",
-        job_card_link,
-        "purchase_order",
-        doc.name,
-        update_modified=False,
-    )
+    for fieldname in ("purchase_order", "custom_purchase_order"):
+        if frappe.db.has_column("EAH Job Card", fieldname):
+            frappe.db.set_value(
+                "EAH Job Card",
+                job_card_link,
+                fieldname,
+                doc.name,
+                update_modified=False,
+            )
 
 
 def clear_job_card_purchase_order_link(doc, method=None):
@@ -44,15 +46,19 @@ def clear_job_card_purchase_order_link(doc, method=None):
     if not frappe.db.exists("EAH Job Card", job_card_link):
         return
 
-    linked_purchase_order = frappe.db.get_value("EAH Job Card", job_card_link, "purchase_order")
-    if linked_purchase_order == doc.name:
-        frappe.db.set_value(
-            "EAH Job Card",
-            job_card_link,
-            "purchase_order",
-            None,
-            update_modified=False,
-        )
+    for fieldname in ("purchase_order", "custom_purchase_order"):
+        if not frappe.db.has_column("EAH Job Card", fieldname):
+            continue
+
+        linked_purchase_order = frappe.db.get_value("EAH Job Card", job_card_link, fieldname)
+        if linked_purchase_order == doc.name:
+            frappe.db.set_value(
+                "EAH Job Card",
+                job_card_link,
+                fieldname,
+                None,
+                update_modified=False,
+            )
 
 
 def validate_purchase_order_spare_parts_rate_limit(doc, method=None):
