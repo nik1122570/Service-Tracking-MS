@@ -143,7 +143,10 @@ fixtures = [
 # ------------
 
 # before_install = "service_app.install.before_install"
-# after_install = "service_app.service_tracking.workspace.create_fleet_maintenance_dashboard"
+after_install = "service_app.service_tracking.workspace.bootstrap_service_tracking_dashboards"
+after_migrate = [
+	"service_app.service_tracking.workspace.bootstrap_service_tracking_dashboards"
+]
 
 # Uninstallation
 # ------------

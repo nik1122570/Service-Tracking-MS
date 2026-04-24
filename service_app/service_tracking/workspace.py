@@ -7,7 +7,15 @@ import frappe
 MAINTENANCE_CONTROL_CENTER = "Maintenance Control Center"
 MAINTENANCE_INTELLIGENCE_PAGE = "maintenance-intelligence"
 TYRE_INTELLIGENCE_PAGE = "tyre-intelligence"
+WORKSPACE_MODULE = "Service Tracking"
 DEFAULT_CURRENCY = lambda: frappe.db.get_single_value("Global Defaults", "default_currency")
+MAINTENANCE_CONTROL_CENTER_ROLES = (
+    "System Manager",
+    "Workshop Manager",
+    "Stock User",
+    "Purchase Manager",
+    "Purchase User",
+)
 MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS = (
     {
         "label": "Total Maintenance Cost This Month",
@@ -307,14 +315,115 @@ def _ensure_workspace_shortcut(workspace, config):
     )
 
 
-def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
+def _load_workspace_content(workspace):
     if not workspace.content:
-        return
+        return []
 
     try:
         content = json.loads(workspace.content)
     except Exception:
+        return []
+
+    return content if isinstance(content, list) else []
+
+
+def _save_workspace_content(workspace, content):
+    workspace.content = json.dumps(content, separators=(",", ":"))
+    workspace.flags.workspace_content_updated = True
+
+
+def _ensure_workspace_content_header(workspace, text, col=12):
+    content = _load_workspace_content(workspace)
+    existing_block = next(
+        (
+            block for block in content
+            if block.get("type") == "header"
+            and str((block.get("data") or {}).get("text", "")) == text
+        ),
+        None,
+    )
+    if existing_block:
+        existing_block.setdefault("data", {})
+        existing_block["data"]["text"] = text
+        existing_block["data"]["col"] = existing_block["data"].get("col") or col
+        _save_workspace_content(workspace, content)
         return
+
+    content.append(
+        {
+            "id": frappe.generate_hash(length=10),
+            "type": "header",
+            "data": {
+                "text": text,
+                "col": col,
+            },
+        }
+    )
+    _save_workspace_content(workspace, content)
+
+
+def _ensure_workspace_content_number_card_block(workspace, number_card_name, col=4):
+    content = _load_workspace_content(workspace)
+    existing_block = next(
+        (
+            block for block in content
+            if block.get("type") == "number_card"
+            and (block.get("data") or {}).get("number_card_name") == number_card_name
+        ),
+        None,
+    )
+    if existing_block:
+        existing_block.setdefault("data", {})
+        existing_block["data"]["number_card_name"] = number_card_name
+        existing_block["data"]["col"] = existing_block["data"].get("col") or col
+        _save_workspace_content(workspace, content)
+        return
+
+    content.append(
+        {
+            "id": frappe.generate_hash(length=10),
+            "type": "number_card",
+            "data": {
+                "number_card_name": number_card_name,
+                "col": col,
+            },
+        }
+    )
+    _save_workspace_content(workspace, content)
+
+
+def _ensure_workspace_content_chart_block(workspace, chart_name, col=6):
+    content = _load_workspace_content(workspace)
+    existing_block = next(
+        (
+            block for block in content
+            if block.get("type") == "chart"
+            and (block.get("data") or {}).get("chart_name") == chart_name
+        ),
+        None,
+    )
+    if existing_block:
+        existing_block.setdefault("data", {})
+        existing_block["data"]["chart_name"] = chart_name
+        existing_block["data"]["col"] = existing_block["data"].get("col") or col
+        _save_workspace_content(workspace, content)
+        return
+
+    content.append(
+        {
+            "id": frappe.generate_hash(length=10),
+            "type": "chart",
+            "data": {
+                "chart_name": chart_name,
+                "col": col,
+            },
+        }
+    )
+    _save_workspace_content(workspace, content)
+
+
+def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
+    content = _load_workspace_content(workspace)
 
     existing_block = next(
         (
@@ -328,8 +437,7 @@ def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
         existing_block.setdefault("data", {})
         existing_block["data"]["shortcut_name"] = shortcut_label
         existing_block["data"]["col"] = existing_block["data"].get("col") or col
-        workspace.content = json.dumps(content, separators=(",", ":"))
-        workspace.flags.workspace_content_updated = True
+        _save_workspace_content(workspace, content)
         return
 
     shortcut_block = {
@@ -341,33 +449,73 @@ def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
         },
     }
 
-    insert_at = next(
-        (
-            index for index, block in enumerate(content)
-            if block.get("type") == "header"
-            and "Reports" in str((block.get("data") or {}).get("text", ""))
-        ),
-        len(content),
-    )
-    content.insert(insert_at, shortcut_block)
-    workspace.content = json.dumps(content, separators=(",", ":"))
-    workspace.flags.workspace_content_updated = True
+    content.append(shortcut_block)
+    _save_workspace_content(workspace, content)
+
+
+def _ensure_workspace_role(workspace, role):
+    existing = next((row for row in (workspace.roles or []) if row.role == role), None)
+    if existing:
+        return
+
+    workspace.append("roles", {"role": role})
+
+
+def _ensure_maintenance_control_center_workspace(workspace_name=MAINTENANCE_CONTROL_CENTER):
+    is_new = not frappe.db.exists("Workspace", workspace_name)
+    workspace = frappe.new_doc("Workspace") if is_new else frappe.get_doc("Workspace", workspace_name)
+
+    workspace.label = workspace_name
+    if hasattr(workspace, "title"):
+        workspace.title = workspace_name
+    if hasattr(workspace, "module"):
+        workspace.module = WORKSPACE_MODULE
+    if hasattr(workspace, "public"):
+        workspace.public = 1
+    workspace.is_hidden = 0
+    workspace.icon = workspace.icon or "es-line-chart"
+    workspace.content = workspace.content or "[]"
+
+    for role in MAINTENANCE_CONTROL_CENTER_ROLES:
+        _ensure_workspace_role(workspace, role)
+
+    workspace.flags.ignore_permissions = True
+    if is_new:
+        workspace.insert(ignore_permissions=True)
+    else:
+        workspace.save(ignore_permissions=True)
+
+    return workspace
 
 
 @frappe.whitelist()
 def setup_maintenance_control_center_workspace(workspace_name=MAINTENANCE_CONTROL_CENTER):
-    if not frappe.db.exists("Workspace", workspace_name):
-        frappe.throw(f"Workspace {workspace_name} was not found.")
+    workspace = _ensure_maintenance_control_center_workspace(workspace_name)
 
-    workspace = frappe.get_doc("Workspace", workspace_name)
+    _ensure_workspace_content_header(
+        workspace,
+        '<span class="h4"><b>Command Metrics</b></span>',
+    )
 
     for card_config in MAINTENANCE_CONTROL_CENTER_NUMBER_CARDS:
         card_name = _upsert_custom_number_card(card_config)
         _ensure_workspace_number_card(workspace, card_name, card_config["label"])
+        _ensure_workspace_content_number_card_block(workspace, card_name)
+
+    _ensure_workspace_content_header(
+        workspace,
+        '<span class="h4"><b>Visual Diagnostics</b></span>',
+    )
 
     for chart_config in MAINTENANCE_CONTROL_CENTER_CHARTS:
         chart_name = _upsert_dashboard_chart(chart_config)
         _ensure_workspace_chart(workspace, chart_name, chart_config["label"])
+        _ensure_workspace_content_chart_block(workspace, chart_name)
+
+    _ensure_workspace_content_header(
+        workspace,
+        '<span class="h4"><b>Intelligence Shortcuts</b></span>',
+    )
 
     for shortcut_config in MAINTENANCE_CONTROL_CENTER_SHORTCUTS:
         _ensure_workspace_shortcut(workspace, shortcut_config)
@@ -387,3 +535,14 @@ def setup_maintenance_control_center_workspace(workspace_name=MAINTENANCE_CONTRO
     frappe.db.commit()
 
     return f"Workspace {workspace_name} updated with management number cards and charts."
+
+
+@frappe.whitelist()
+def bootstrap_service_tracking_dashboards():
+    """
+    Ensure core service dashboards and workspace assets exist on any site
+    (fresh installs and already-running sites).
+    """
+    create_fleet_maintenance_dashboard()
+    setup_maintenance_control_center_workspace()
+    return "Service Tracking dashboards bootstrapped."
