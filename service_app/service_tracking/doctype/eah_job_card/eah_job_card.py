@@ -429,10 +429,11 @@ def make_purchase_order(source_name, target_doc=None):
         if service_charges <= 0:
             return
 
-        labour_item = getattr(source, "custom_default_labour_item", None)
+        labour_item = get_default_labour_item_for_job_card(source)
         if not labour_item:
             frappe.throw(
-                "Default Labour Item is required to transfer labour charges into the Purchase Order."
+                "Default Labour Item is required to transfer labour charges into the Purchase Order. "
+                "Please set it on the EAH Job Card or in Service App Settings."
             )
 
         item_details = frappe.db.get_value(
@@ -540,10 +541,11 @@ def get_expected_job_card_purchase_order_rows(job_card):
 
     service_charges = get_job_card_labour_charge_total(job_card, update_row_totals=False)
     if service_charges > 0:
-        labour_item = getattr(job_card, "custom_default_labour_item", None)
+        labour_item = get_default_labour_item_for_job_card(job_card)
         if not labour_item:
             frappe.throw(
-                "Default Labour Item is required to transfer labour charges into the Purchase Order."
+                "Default Labour Item is required to transfer labour charges into the Purchase Order. "
+                "Please set it on the EAH Job Card or in Service App Settings."
             )
 
         labour_uom = frappe.db.get_value("Item", labour_item, "stock_uom") or ""
@@ -581,6 +583,44 @@ def get_purchase_order_job_card_link(doc):
         if value:
             return value
     return ""
+
+
+def _get_single_doctype_value_if_field_exists(doctype, fieldnames):
+    fieldname = _get_first_available_doctype_field(doctype, fieldnames)
+    if not fieldname:
+        return ""
+
+    if frappe.get_meta(doctype).issingle:
+        value = frappe.db.get_single_value(doctype, fieldname)
+    else:
+        value = frappe.db.get_value(doctype, doctype, fieldname)
+
+    return (value or "").strip() if isinstance(value, str) else value
+
+
+def get_default_labour_item_for_job_card(job_card):
+    # Priority:
+    # 1) Value on EAH Job Card (supports both v15/v16 fieldnames)
+    # 2) Value in Service App Settings (supports both standard/custom-prefixed fieldnames)
+    for fieldname in ("default_labour_item", "custom_default_labour_item"):
+        value = getattr(job_card, fieldname, None)
+        if isinstance(value, str):
+            value = value.strip()
+        if value:
+            return value
+
+    return _get_single_doctype_value_if_field_exists(
+        "Service App Settings",
+        ("default_labour_item", "custom_default_labour_item"),
+    )
+
+
+def _get_first_available_doctype_field(doctype, fieldnames):
+    columns = set(frappe.db.get_table_columns(doctype))
+    for fieldname in fieldnames:
+        if fieldname in columns:
+            return fieldname
+    return None
 
 
 def validate_purchase_order_job_card_integrity(doc, method=None):
@@ -642,23 +682,32 @@ def get_vehicle_maintenance_history(vehicle):
     if not vehicle:
         return []
 
+    fields = [
+        "name",
+        "service_date",
+        "supplier",
+        "driver_name",
+        "project",
+    ]
+    odometer_field = _get_first_available_doctype_field(
+        "EAH Job Card",
+        ("odometer_reading", "vehicle_odometer", "odometer", "current_odometer"),
+    )
+    if odometer_field:
+        fields.append(odometer_field)
+
     job_cards = frappe.get_all(
         "EAH Job Card",
         filters={"vehicle": vehicle, "docstatus": 1},
-        fields=[
-            "name",
-            "service_date",
-            "supplier",
-            "driver_name",
-            "project",
-            "odometer_reading"
-        ],
+        fields=fields,
         order_by="service_date desc"
     )
 
     history = []
 
     for jc in job_cards:
+        if "odometer_reading" not in jc:
+            jc["odometer_reading"] = jc.get(odometer_field) if odometer_field else None
 
         templates = []
         labour_templates = frappe.get_all(

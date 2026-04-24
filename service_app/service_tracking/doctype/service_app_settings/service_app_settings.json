@@ -10,7 +10,8 @@
   "warranty_period_for_original_parts_in_days",
   "warranty_period_for_second_hand_part",
   "warranty_period_for_electrical_part",
-  "warranty_period_for_both"
+  "warranty_period_for_both",
+  "default_labour_item"
  ],
  "fields": [
   {
@@ -45,13 +46,19 @@
    "fieldname": "warranty_period_for_both",
    "fieldtype": "Float",
    "label": "Warranty period for both "
+  },
+  {
+   "fieldname": "default_labour_item",
+   "fieldtype": "Link",
+   "label": "Default Labour Item",
+   "options": "Item"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-22 20:46:17.163658",
+ "modified": "2026-04-24 13:23:43.939157",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Service App Settings",
