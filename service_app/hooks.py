@@ -62,6 +62,7 @@ STANDARD_CUSTOMIZED_DOCTYPES = [
 	"Employee",
 	"Item",
 	"Item Barcode",
+	"Item Price",
 	"Job Card",
 	"Material Request",
 	"POS Invoice",
@@ -72,6 +73,7 @@ STANDARD_CUSTOMIZED_DOCTYPES = [
 	"Purchase Invoice",
 	"Purchase Invoice Item",
 	"Purchase Order",
+	"Purchase Order Item",
 	"Purchase Receipt",
 	"Purchase Receipt Item",
 	"Quotation",
@@ -84,6 +86,7 @@ STANDARD_CUSTOMIZED_DOCTYPES = [
 	"Stock Reconciliation Item",
 	"Supplier",
 	"Supplier Quotation",
+	"Supplier Quotation Item",
 ]
 
 # Export standard ERPNext doctype customizations so they deploy to new sites.

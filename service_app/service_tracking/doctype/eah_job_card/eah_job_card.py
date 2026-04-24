@@ -616,7 +616,27 @@ def get_default_labour_item_for_job_card(job_card):
 
 
 def _get_first_available_doctype_field(doctype, fieldnames):
-    columns = set(frappe.db.get_table_columns(doctype))
+    if not doctype or not fieldnames:
+        return None
+
+    if not frappe.db.exists("DocType", doctype):
+        return None
+
+    meta = frappe.get_meta(doctype)
+
+    # Single DocTypes store values in tabSingles (no dedicated table),
+    # so field detection must come from metadata.
+    if meta.issingle:
+        for fieldname in fieldnames:
+            if meta.get_field(fieldname):
+                return fieldname
+        return None
+
+    try:
+        columns = set(frappe.db.get_table_columns(doctype))
+    except Exception:
+        return None
+
     for fieldname in fieldnames:
         if fieldname in columns:
             return fieldname
