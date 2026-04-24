@@ -121,7 +121,7 @@ def get_chart_data(data):
     for row in data:
         month_label = getdate(row.get("request_date")).strftime("%b %Y")
         if row.get("lead_time_days") is not None:
-            monthly_lead_times[month_label].append(flt(row.lead_time_days))
+            monthly_lead_times[month_label].append(flt(row.get("lead_time_days")))
         if row.get("purchase_status") == "Pending Purchase":
             pending_counts[month_label] += 1
 

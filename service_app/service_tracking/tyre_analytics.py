@@ -6,6 +6,27 @@ from frappe import _
 from frappe.utils import add_months, date_diff, flt, getdate, today
 
 
+def _get_first_available_field(doctype, fieldnames):
+    columns = set(frappe.db.get_table_columns(doctype))
+    for fieldname in fieldnames:
+        if fieldname in columns:
+            return fieldname
+    return None
+
+
+def _get_tyre_request_odometer_select_expr():
+    odometer_field = _get_first_available_field(
+        "Tyre Request",
+        (
+            "odometer_reading",
+            "vehicle_odometer",
+            "odometer",
+            "current_odometer",
+        ),
+    )
+    return f"request.`{odometer_field}`" if odometer_field else "0"
+
+
 def parse_multi_select_filter(values):
     if not values:
         return []
@@ -104,6 +125,8 @@ def get_tyre_request_rows(filters=None, ignore_date_filters=False):
         conditions.append("COALESCE(item.worn_out_serial_no, '') = %(serial_no)s")
         values["serial_no"] = filters.serial_no
 
+    odometer_select_expr = _get_tyre_request_odometer_select_expr()
+
     return frappe.db.sql(
         f"""
         SELECT
@@ -111,7 +134,7 @@ def get_tyre_request_rows(filters=None, ignore_date_filters=False):
             request.request_date,
             request.vehicle,
             request.license_plate,
-            request.odometer_reading,
+            {odometer_select_expr} AS odometer_reading,
             request.supplier,
             request.project,
             request.cost_center,

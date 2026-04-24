@@ -90,13 +90,40 @@ def _get_previous_period_filters(filters):
     )
 
 
-def _get_invoice_conditions(filters, from_date=None, to_date=None):
+def _get_invoice_query_context():
+    return frappe._dict(
+        {
+            "po_job_card_link_field": _get_first_available_field(
+                "Purchase Order",
+                ("custom_job_card_link", "job_card_link", "eah_job_card"),
+            ),
+            "jc_labour_item_field": _get_first_available_field(
+                "EAH Job Card",
+                ("custom_default_labour_item", "default_labour_item"),
+            ),
+        }
+    )
+
+
+def _get_first_available_field(doctype, fieldnames):
+    columns = set(frappe.db.get_table_columns(doctype))
+    for fieldname in fieldnames:
+        if fieldname in columns:
+            return fieldname
+    return None
+
+
+def _get_invoice_conditions(filters, query_context, from_date=None, to_date=None):
     conditions = [
         "pi.docstatus = 1",
         "pii.parenttype = 'Purchase Invoice'",
         "COALESCE(pii.purchase_order, '') != ''",
-        "COALESCE(po.custom_job_card_link, '') != ''",
     ]
+    link_field = query_context.get("po_job_card_link_field")
+    if link_field:
+        conditions.append(f"COALESCE(po.`{link_field}`, '') != ''")
+    else:
+        conditions.append("1=0")
     values = {}
 
     if from_date and to_date:
@@ -114,32 +141,52 @@ def _get_invoice_conditions(filters, from_date=None, to_date=None):
     return conditions, values
 
 
+def _get_invoice_join_clause(query_context):
+    link_field = query_context.get("po_job_card_link_field")
+    if not link_field:
+        return ""
+
+    return f"""
+        INNER JOIN `tabPurchase Invoice` pi
+            ON pi.name = pii.parent
+        INNER JOIN `tabPurchase Order` po
+            ON po.name = pii.purchase_order
+        INNER JOIN `tabEAH Job Card` jc
+            ON jc.name = po.`{link_field}`
+    """
+
+
 def _get_period_summary(filters):
-    conditions, values = _get_invoice_conditions(filters, filters.from_date, filters.to_date)
-    result = frappe.db.sql(
+    query_context = _get_invoice_query_context()
+    conditions, values = _get_invoice_conditions(query_context=query_context, filters=filters, from_date=filters.from_date, to_date=filters.to_date)
+    invoice_join_clause = _get_invoice_join_clause(query_context)
+    labour_item_field = query_context.get("jc_labour_item_field")
+    labour_spend_expression = (
         f"""
-        SELECT
-            COALESCE(SUM(pii.base_net_amount), 0) AS total_spend,
             COALESCE(
                 SUM(
                     CASE
-                        WHEN COALESCE(jc.custom_default_labour_item, '') != ''
-                         AND pii.item_code = jc.custom_default_labour_item
+                        WHEN COALESCE(jc.`{labour_item_field}`, '') != ''
+                         AND pii.item_code = jc.`{labour_item_field}`
                         THEN pii.base_net_amount
                         ELSE 0
                     END
                 ),
                 0
             ) AS labour_spend,
+        """
+        if labour_item_field
+        else "0 AS labour_spend,"
+    )
+    result = frappe.db.sql(
+        f"""
+        SELECT
+            COALESCE(SUM(pii.base_net_amount), 0) AS total_spend,
+            {labour_spend_expression}
             COUNT(DISTINCT pi.name) AS invoice_count,
             COUNT(DISTINCT jc.vehicle) AS vehicle_count
         FROM `tabPurchase Invoice Item` pii
-        INNER JOIN `tabPurchase Invoice` pi
-            ON pi.name = pii.parent
-        INNER JOIN `tabPurchase Order` po
-            ON po.name = pii.purchase_order
-        INNER JOIN `tabEAH Job Card` jc
-            ON jc.name = po.custom_job_card_link
+        {invoice_join_clause}
         WHERE {' AND '.join(conditions)}
         """,
         values,
@@ -201,7 +248,9 @@ def _get_repeat_service_vehicle_count(filters):
 
 
 def _get_top_vehicle_costs(filters, limit=8):
-    conditions, values = _get_invoice_conditions(filters, filters.from_date, filters.to_date)
+    query_context = _get_invoice_query_context()
+    conditions, values = _get_invoice_conditions(query_context=query_context, filters=filters, from_date=filters.from_date, to_date=filters.to_date)
+    invoice_join_clause = _get_invoice_join_clause(query_context)
     conditions.append("COALESCE(jc.vehicle, '') != ''")
 
     rows = frappe.db.sql(
@@ -210,12 +259,7 @@ def _get_top_vehicle_costs(filters, limit=8):
             jc.vehicle AS label,
             COALESCE(SUM(pii.base_net_amount), 0) AS value
         FROM `tabPurchase Invoice Item` pii
-        INNER JOIN `tabPurchase Invoice` pi
-            ON pi.name = pii.parent
-        INNER JOIN `tabPurchase Order` po
-            ON po.name = pii.purchase_order
-        INNER JOIN `tabEAH Job Card` jc
-            ON jc.name = po.custom_job_card_link
+        {invoice_join_clause}
         WHERE {' AND '.join(conditions)}
         GROUP BY jc.vehicle
         ORDER BY value DESC, jc.vehicle ASC
@@ -230,7 +274,9 @@ def _get_top_vehicle_costs(filters, limit=8):
 
 
 def _get_top_supplier_costs(filters, limit=8):
-    conditions, values = _get_invoice_conditions(filters, filters.from_date, filters.to_date)
+    query_context = _get_invoice_query_context()
+    conditions, values = _get_invoice_conditions(query_context=query_context, filters=filters, from_date=filters.from_date, to_date=filters.to_date)
+    invoice_join_clause = _get_invoice_join_clause(query_context)
     conditions.append("COALESCE(pi.supplier, '') != ''")
 
     rows = frappe.db.sql(
@@ -239,12 +285,7 @@ def _get_top_supplier_costs(filters, limit=8):
             pi.supplier AS label,
             COALESCE(SUM(pii.base_net_amount), 0) AS value
         FROM `tabPurchase Invoice Item` pii
-        INNER JOIN `tabPurchase Invoice` pi
-            ON pi.name = pii.parent
-        INNER JOIN `tabPurchase Order` po
-            ON po.name = pii.purchase_order
-        INNER JOIN `tabEAH Job Card` jc
-            ON jc.name = po.custom_job_card_link
+        {invoice_join_clause}
         WHERE {' AND '.join(conditions)}
         GROUP BY pi.supplier
         ORDER BY value DESC, pi.supplier ASC
@@ -260,7 +301,9 @@ def _get_top_supplier_costs(filters, limit=8):
 
 def _get_monthly_spend_trend(filters):
     month_starts = _get_month_sequence(filters.from_date, filters.to_date)
-    conditions, values = _get_invoice_conditions(filters, filters.from_date, filters.to_date)
+    query_context = _get_invoice_query_context()
+    conditions, values = _get_invoice_conditions(query_context=query_context, filters=filters, from_date=filters.from_date, to_date=filters.to_date)
+    invoice_join_clause = _get_invoice_join_clause(query_context)
 
     rows = frappe.db.sql(
         f"""
@@ -268,12 +311,7 @@ def _get_monthly_spend_trend(filters):
             DATE_FORMAT(pi.posting_date, '%%Y-%%m-01') AS month_start,
             COALESCE(SUM(pii.base_net_amount), 0) AS total_spend
         FROM `tabPurchase Invoice Item` pii
-        INNER JOIN `tabPurchase Invoice` pi
-            ON pi.name = pii.parent
-        INNER JOIN `tabPurchase Order` po
-            ON po.name = pii.purchase_order
-        INNER JOIN `tabEAH Job Card` jc
-            ON jc.name = po.custom_job_card_link
+        {invoice_join_clause}
         WHERE {' AND '.join(conditions)}
         GROUP BY YEAR(pi.posting_date), MONTH(pi.posting_date)
         ORDER BY YEAR(pi.posting_date), MONTH(pi.posting_date)
