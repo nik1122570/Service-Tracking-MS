@@ -8,6 +8,16 @@ from service_app.service_tracking.doctype.eah_job_card.eah_job_card import get_i
 
 TYRE_ITEM_GROUP = "Tyres"
 REQUEST_TYPE_TYRE_MAINTENANCE = "Tyre Maintenance"
+REQUEST_TYPE_NEW_TYRE_PURCHASE = "New Tyre Purchase"
+MAINTENANCE_REQUEST_TYPE_ALIASES = {
+    "tyre maintenance",
+    "tyre maintenace",
+    "maintenance",
+}
+PURCHASE_REQUEST_TYPE_ALIASES = {
+    "new tyre purchase",
+    "tyre purchase",
+}
 
 
 class TyreRequest(Document):
@@ -122,7 +132,7 @@ class TyreRequest(Document):
                 frappe.throw(f"Row {index}: Rate must be greater than zero.")
 
     def validate_outstanding_receipt_control(self):
-        if self.is_tyre_maintenance_request():
+        if not self.is_new_tyre_purchase_request():
             return
 
         outstanding_request = get_outstanding_tyre_request_for_vehicle(
@@ -159,7 +169,21 @@ class TyreRequest(Document):
         self.total_purchase_amount = sum(flt(row.qty) * flt(row.rate) for row in self.tyre_items)
 
     def is_tyre_maintenance_request(self):
-        return cstr(getattr(self, "request_type", "")).strip() == REQUEST_TYPE_TYRE_MAINTENANCE
+        request_type = self._get_normalized_request_type()
+        if not request_type:
+            return False
+
+        return request_type in MAINTENANCE_REQUEST_TYPE_ALIASES
+
+    def is_new_tyre_purchase_request(self):
+        request_type = self._get_normalized_request_type()
+        if not request_type:
+            return False
+
+        return request_type in PURCHASE_REQUEST_TYPE_ALIASES
+
+    def _get_normalized_request_type(self):
+        return " ".join(cstr(getattr(self, "request_type", "")).strip().lower().split())
 
 
 @frappe.whitelist()
@@ -254,6 +278,8 @@ def make_tyre_maintenance_purchase_order(source, target_doc=None):
             "item_name": item_details.item_name,
             "qty": 1,
             "uom": item_details.stock_uom,
+            "stock_uom": item_details.stock_uom,
+            "conversion_factor": 1,
             "rate": total_amount,
             "description": build_tyre_maintenance_purchase_description(source),
             "project": source.project,
@@ -271,9 +297,9 @@ def make_tyre_receiving_note(source_name, target_doc=None):
     if source.docstatus != 1:
         frappe.throw("Only submitted Tyre Requests can create a Tyre Receiving Note.")
 
-    if source.is_tyre_maintenance_request():
+    if not source.is_new_tyre_purchase_request():
         frappe.throw(
-            "Tyre Receiving Note is only applicable for New Tyre Purchase requests."
+            "Tyre Receiving Note is only applicable for Tyre Purchase requests."
         )
 
     existing_receiving_note = frappe.db.get_value(

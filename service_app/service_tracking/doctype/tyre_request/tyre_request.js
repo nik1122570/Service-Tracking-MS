@@ -1,12 +1,10 @@
 frappe.ui.form.on("Tyre Request", {
 	setup(frm) {
-		set_tyre_item_queries(frm);
 		set_tyre_request_field_state(frm);
 		calculate_tyre_request_totals(frm);
 	},
 
 	refresh(frm) {
-		set_tyre_item_queries(frm);
 		set_tyre_request_field_state(frm);
 		if (is_new_tyre_purchase_request(frm)) {
 			sync_tyre_item_price_list(frm, {
@@ -108,18 +106,6 @@ frappe.ui.form.on("Tyre Maintenance Item", {
 		calculate_tyre_request_totals(frm);
 	}
 });
-
-function set_tyre_item_queries(frm) {
-	if (!frm.fields_dict.tyre_items || !frm.fields_dict.tyre_items.grid) {
-		return;
-	}
-
-	frm.fields_dict.tyre_items.grid.get_field("item").get_query = () => ({
-		filters: {
-			item_group: "Tyres"
-		}
-	});
-}
 
 function set_tyre_request_field_state(frm) {
 	const isMaintenance = is_tyre_maintenance_request(frm);
@@ -314,9 +300,15 @@ function validate_tyre_rate_limit(frm, cdt, cdn) {
 }
 
 function is_tyre_maintenance_request(frm) {
-	return (frm.doc.request_type || "").trim() === "Tyre Maintenance";
+	const requestType = normalize_request_type(frm.doc.request_type);
+	return ["tyre maintenance", "tyre maintenace", "maintenance"].includes(requestType);
 }
 
 function is_new_tyre_purchase_request(frm) {
-	return (frm.doc.request_type || "").trim() !== "Tyre Maintenance";
+	const requestType = normalize_request_type(frm.doc.request_type);
+	return ["new tyre purchase", "tyre purchase"].includes(requestType);
+}
+
+function normalize_request_type(value) {
+	return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
