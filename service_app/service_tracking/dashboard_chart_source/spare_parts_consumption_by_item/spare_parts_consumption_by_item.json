@@ -1,0 +1,7 @@
+{
+ "doctype": "Dashboard Chart Source",
+ "module": "Service Tracking",
+ "name": "Spare Parts Consumption by Item",
+ "source_name": "Spare Parts Consumption by Item",
+ "timeseries": 0
+}

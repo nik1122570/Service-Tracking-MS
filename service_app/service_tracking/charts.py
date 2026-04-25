@@ -1,7 +1,7 @@
 import frappe
 
 @frappe.whitelist()
-def get_spare_parts_consumption():
+def get_spare_parts_consumption(**kwargs):
     data = frappe.db.sql("""
         SELECT item, item_name, SUM(qty) as total_qty
         FROM `tabSupplied Parts`
