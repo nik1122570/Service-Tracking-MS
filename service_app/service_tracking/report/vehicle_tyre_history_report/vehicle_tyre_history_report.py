@@ -8,7 +8,10 @@ import frappe
 from frappe import _
 from frappe.utils import date_diff, flt, getdate
 
-from service_app.service_tracking.tyre_analytics import set_default_date_filters
+from service_app.service_tracking.tyre_analytics import (
+    get_tyre_request_odometer_select_expr,
+    set_default_date_filters,
+)
 
 
 def execute(filters=None):
@@ -38,7 +41,7 @@ def get_columns():
     return [
         {"label": _("Vehicle"), "fieldname": "vehicle", "fieldtype": "Link", "options": "Vehicle", "width": 130},
         {"label": _("License Plate"), "fieldname": "license_plate", "fieldtype": "Data", "width": 130},
-        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Maintenance Postion", "width": 120},
+        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Tyre Position", "width": 120},
         {"label": _("Tyre Request"), "fieldname": "tyre_request", "fieldtype": "Link", "options": "Tyre Request", "width": 150},
         {"label": _("Installed On"), "fieldname": "request_date", "fieldtype": "Date", "width": 110},
         {"label": _("Tyre Item"), "fieldname": "item", "fieldtype": "Link", "options": "Item", "width": 130},
@@ -90,6 +93,8 @@ def get_request_rows(filters):
         conditions.append("item.wheel_position = %(wheel_position)s")
         values["wheel_position"] = filters.wheel_position
 
+    odometer_select_expr = get_tyre_request_odometer_select_expr()
+
     return frappe.db.sql(
         f"""
         SELECT
@@ -97,7 +102,7 @@ def get_request_rows(filters):
             request.request_date,
             request.vehicle,
             request.license_plate,
-            request.odometer_reading,
+            {odometer_select_expr} AS odometer_reading,
             request.supplier,
             item.wheel_position,
             item.item,

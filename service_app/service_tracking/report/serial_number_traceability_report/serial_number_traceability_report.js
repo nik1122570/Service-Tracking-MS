@@ -42,7 +42,7 @@ frappe.query_reports["Serial Number Traceability Report"] = {
 			fieldname: "wheel_position",
 			label: __("Wheel Position"),
 			fieldtype: "Link",
-			options: "Maintenance Postion"
+			options: "Tyre Position"
 		}
 	]
 };

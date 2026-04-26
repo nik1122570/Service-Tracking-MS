@@ -31,7 +31,7 @@ frappe.query_reports["Tyre Lifespan Analysis Report"] = {
 			fieldname: "wheel_position",
 			label: __("Wheel Position"),
 			fieldtype: "Link",
-			options: "Maintenance Postion"
+			options: "Tyre Position"
 		}
 	]
 };

@@ -223,7 +223,7 @@ def build_history_rows(item_price_docs, version_map):
     return sorted(
         rows,
         key=lambda row: (
-            row.get("changed_on") or get_datetime("1900-01-01 00:00:00"),
+            get_report_datetime(row.get("changed_on")),
             row.get("item_code") or "",
             row.get("price_list") or "",
             row.get("supplier") or "",
@@ -305,7 +305,7 @@ def make_row(doc, state, changed_on, changed_by, event_type, previous_rate, new_
             change_percentage = (change_amount / flt(previous_rate)) * 100
 
     return {
-        "changed_on": changed_on,
+        "changed_on": get_report_datetime(changed_on),
         "event_type": event_type,
         "change_direction": get_change_direction(previous_rate, new_rate, event_type),
         "item_price": doc.name,
@@ -323,6 +323,10 @@ def make_row(doc, state, changed_on, changed_by, event_type, previous_rate, new_
         "changed_by": changed_by,
         "currency": state.get("currency"),
     }
+
+
+def get_report_datetime(value):
+    return get_datetime(value or "1900-01-01 00:00:00")
 
 
 def get_current_state(doc):

@@ -9,6 +9,10 @@ from frappe import _
 from frappe.utils import flt, getdate
 
 
+JOB_CARD_LABOUR_ITEM_FIELDS = ("default_labour_item", "custom_default_labour_item")
+PURCHASE_ORDER_JOB_CARD_LINK_FIELDS = ("custom_job_card_link", "eah_job_card", "job_card_link")
+
+
 def execute(filters=None):
     filters = frappe._dict(filters or {})
     validate_filters(filters)
@@ -115,11 +119,24 @@ def parse_multi_select_filter(values):
 
 def get_invoice_linked_maintenance_records(filters):
     vehicles = parse_multi_select_filter(filters.get("vehicles"))
+    po_job_card_link_expression = get_purchase_order_job_card_link_expression()
+    if not po_job_card_link_expression:
+        return []
+
+    job_card_labour_item_field = get_first_existing_table_column(
+        "EAH Job Card",
+        JOB_CARD_LABOUR_ITEM_FIELDS,
+    )
+    job_card_labour_item_select = (
+        f"jc.`{job_card_labour_item_field}` AS job_card_labour_item"
+        if job_card_labour_item_field
+        else "'' AS job_card_labour_item"
+    )
     conditions = [
         "pi.docstatus = 1",
         "pii.parenttype = 'Purchase Invoice'",
         "COALESCE(pii.purchase_order, '') != ''",
-        "COALESCE(po.custom_job_card_link, '') != ''",
+        f"{po_job_card_link_expression} IS NOT NULL",
         "pi.posting_date BETWEEN %(from_date)s AND %(to_date)s",
     ]
     values = {
@@ -131,38 +148,92 @@ def get_invoice_linked_maintenance_records(filters):
         conditions.append("jc.vehicle IN %(vehicles)s")
         values["vehicles"] = tuple(vehicles)
 
-    return frappe.db.sql(
+    records = frappe.db.sql(
         f"""
         SELECT
             pi.posting_date,
             jc.name AS job_card,
             jc.vehicle,
+            pii.item_code,
             pii.base_net_amount AS total_maintenance_cost,
-            CASE
-                WHEN COALESCE(jc.custom_default_labour_item, '') != ''
-                 AND pii.item_code = jc.custom_default_labour_item
-                THEN pii.base_net_amount
-                ELSE 0
-            END AS service_charges,
-            CASE
-                WHEN COALESCE(jc.custom_default_labour_item, '') = ''
-                 OR pii.item_code != jc.custom_default_labour_item
-                THEN pii.base_net_amount
-                ELSE 0
-            END AS spares_cost
+            {job_card_labour_item_select}
         FROM `tabPurchase Invoice Item` pii
         INNER JOIN `tabPurchase Invoice` pi
             ON pi.name = pii.parent
         INNER JOIN `tabPurchase Order` po
             ON po.name = pii.purchase_order
         INNER JOIN `tabEAH Job Card` jc
-            ON jc.name = po.custom_job_card_link
+            ON jc.name = {po_job_card_link_expression}
         WHERE {' AND '.join(conditions)}
         ORDER BY pi.posting_date ASC, jc.vehicle ASC, pi.name ASC, pii.idx ASC
         """,
         values,
         as_dict=True,
     )
+
+    classify_invoice_item_costs(records)
+    return records
+
+
+def get_purchase_order_job_card_link_expression():
+    link_fields = get_existing_table_columns(
+        "Purchase Order",
+        PURCHASE_ORDER_JOB_CARD_LINK_FIELDS,
+    )
+
+    if not link_fields:
+        return ""
+
+    return "COALESCE({0})".format(
+        ", ".join(f"NULLIF(po.`{fieldname}`, '')" for fieldname in link_fields)
+    )
+
+
+def classify_invoice_item_costs(records):
+    default_labour_item = get_default_labour_item_from_settings()
+
+    for record in records:
+        labour_item = (record.get("job_card_labour_item") or default_labour_item or "").strip()
+        amount = flt(record.get("total_maintenance_cost"))
+
+        if labour_item and record.get("item_code") == labour_item:
+            record.service_charges = amount
+            record.spares_cost = 0
+        else:
+            record.service_charges = 0
+            record.spares_cost = amount
+
+
+def get_default_labour_item_from_settings():
+    if not frappe.db.exists("DocType", "Service App Settings"):
+        return ""
+
+    meta = frappe.get_meta("Service App Settings")
+    for fieldname in JOB_CARD_LABOUR_ITEM_FIELDS:
+        if not meta.get_field(fieldname):
+            continue
+
+        value = frappe.db.get_single_value("Service App Settings", fieldname)
+        return (value or "").strip() if isinstance(value, str) else value or ""
+
+    return ""
+
+
+def get_first_existing_table_column(doctype, candidate_fields):
+    columns = get_existing_table_columns(doctype, candidate_fields)
+    return columns[0] if columns else None
+
+
+def get_existing_table_columns(doctype, candidate_fields):
+    if not frappe.db.exists("DocType", doctype):
+        return []
+
+    try:
+        columns = set(frappe.db.get_table_columns(doctype))
+    except Exception:
+        return []
+
+    return [fieldname for fieldname in candidate_fields if fieldname in columns]
 
 
 def get_vehicle_details(vehicle_names):

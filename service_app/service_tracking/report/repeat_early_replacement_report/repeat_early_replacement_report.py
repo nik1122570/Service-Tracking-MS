@@ -45,7 +45,7 @@ def get_columns():
     return [
         {"label": _("Vehicle"), "fieldname": "vehicle", "fieldtype": "Link", "options": "Vehicle", "width": 130},
         {"label": _("License Plate"), "fieldname": "license_plate", "fieldtype": "Data", "width": 130},
-        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Maintenance Postion", "width": 120},
+        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Tyre Position", "width": 120},
         {"label": _("Tyre Request"), "fieldname": "tyre_request", "fieldtype": "Link", "options": "Tyre Request", "width": 150},
         {"label": _("Installed On"), "fieldname": "request_date", "fieldtype": "Date", "width": 110},
         {"label": _("Removed On"), "fieldname": "next_request_date", "fieldtype": "Date", "width": 110},
@@ -69,10 +69,12 @@ def build_rows(history_rows, filters):
     data = []
 
     for row in history_rows:
-        day_breach = row.get("days_in_service") is not None and flt(row.days_in_service) < flt(filters.threshold_days)
+        days_in_service = row.get("days_in_service")
+        distance_covered = row.get("distance_covered")
+        day_breach = days_in_service is not None and flt(days_in_service) < flt(filters.threshold_days)
         distance_breach = (
-            row.get("distance_covered") is not None
-            and flt(row.distance_covered) < flt(filters.threshold_distance)
+            distance_covered is not None
+            and flt(distance_covered) < flt(filters.threshold_distance)
         )
         if not day_breach and not distance_breach:
             continue

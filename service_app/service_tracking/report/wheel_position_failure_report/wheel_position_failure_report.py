@@ -32,7 +32,7 @@ def execute(filters=None):
 
 def get_columns():
     return [
-        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Maintenance Postion", "width": 120},
+        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Tyre Position", "width": 120},
         {"label": _("Vehicles Affected"), "fieldname": "vehicles_affected", "fieldtype": "Int", "width": 110},
         {"label": _("Replacement Count"), "fieldname": "replacement_count", "fieldtype": "Int", "width": 125},
         {"label": _("Total Qty Replaced"), "fieldname": "total_qty_replaced", "fieldtype": "Float", "width": 125},

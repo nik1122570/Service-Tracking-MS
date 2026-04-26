@@ -33,7 +33,7 @@ def get_columns():
     return [
         {"label": _("Vehicle"), "fieldname": "vehicle", "fieldtype": "Link", "options": "Vehicle", "width": 130},
         {"label": _("License Plate"), "fieldname": "license_plate", "fieldtype": "Data", "width": 130},
-        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Maintenance Postion", "width": 120},
+        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Tyre Position", "width": 120},
         {"label": _("Tyre Request"), "fieldname": "tyre_request", "fieldtype": "Link", "options": "Tyre Request", "width": 150},
         {"label": _("Installed On"), "fieldname": "request_date", "fieldtype": "Date", "width": 110},
         {"label": _("Tyre Brand"), "fieldname": "tyre_brand", "fieldtype": "Data", "width": 120},

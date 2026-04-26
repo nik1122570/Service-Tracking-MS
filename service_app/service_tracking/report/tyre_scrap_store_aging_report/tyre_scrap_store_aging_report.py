@@ -40,7 +40,7 @@ def get_columns():
         {"label": _("Vehicle"), "fieldname": "vehicle", "fieldtype": "Link", "options": "Vehicle", "width": 130},
         {"label": _("License Plate"), "fieldname": "license_plate", "fieldtype": "Data", "width": 130},
         {"label": _("Supplier"), "fieldname": "supplier", "fieldtype": "Link", "options": "Supplier", "width": 150},
-        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Maintenance Postion", "width": 120},
+        {"label": _("Wheel Position"), "fieldname": "wheel_position", "fieldtype": "Link", "options": "Tyre Position", "width": 120},
         {"label": _("Item"), "fieldname": "item", "fieldtype": "Link", "options": "Item", "width": 130},
         {"label": _("Item Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 150},
         {"label": _("Worn Out Brand"), "fieldname": "worn_out_brand", "fieldtype": "Data", "width": 130},

@@ -6,15 +6,37 @@ from frappe import _
 from frappe.utils import add_months, date_diff, flt, getdate, today
 
 
+PURCHASE_ORDER_TYRE_REQUEST_LINK_FIELDS = (
+    "custom_tyre_request_link",
+    "tyre_request",
+    "tyre_request_link",
+)
+
+
 def _get_first_available_field(doctype, fieldnames):
-    columns = set(frappe.db.get_table_columns(doctype))
+    columns = _get_doctype_columns(doctype)
     for fieldname in fieldnames:
         if fieldname in columns:
             return fieldname
     return None
 
 
-def _get_tyre_request_odometer_select_expr():
+def _get_available_fields(doctype, fieldnames):
+    columns = _get_doctype_columns(doctype)
+    return [fieldname for fieldname in fieldnames if fieldname in columns]
+
+
+def _get_doctype_columns(doctype):
+    if not frappe.db.exists("DocType", doctype):
+        return set()
+
+    try:
+        return set(frappe.db.get_table_columns(doctype))
+    except Exception:
+        return set()
+
+
+def get_tyre_request_odometer_select_expr(table_alias="request"):
     odometer_field = _get_first_available_field(
         "Tyre Request",
         (
@@ -24,7 +46,23 @@ def _get_tyre_request_odometer_select_expr():
             "current_odometer",
         ),
     )
-    return f"request.`{odometer_field}`" if odometer_field else "0"
+    return f"{table_alias}.`{odometer_field}`" if odometer_field else "0"
+
+
+def _get_tyre_request_odometer_select_expr():
+    return get_tyre_request_odometer_select_expr()
+
+
+def get_purchase_order_tyre_request_link_expr(table_alias="po"):
+    link_fields = _get_available_fields("Purchase Order", PURCHASE_ORDER_TYRE_REQUEST_LINK_FIELDS)
+    if not link_fields:
+        return None
+
+    link_expressions = [f"NULLIF({table_alias}.`{fieldname}`, '')" for fieldname in link_fields]
+    if len(link_expressions) == 1:
+        return link_expressions[0]
+
+    return "COALESCE({})".format(", ".join(link_expressions))
 
 
 def parse_multi_select_filter(values):
@@ -166,10 +204,13 @@ def get_tyre_request_rows(filters=None, ignore_date_filters=False):
 def get_tyre_purchase_rows(filters=None, ignore_date_filters=False):
     filters = frappe._dict(filters or {})
     vehicle_names = _get_vehicle_names(filters)
+    tyre_request_link_expr = get_purchase_order_tyre_request_link_expr()
+    if not tyre_request_link_expr:
+        return []
+
     conditions = [
         "po.docstatus = 1",
-        "po.custom_tyre_request_link IS NOT NULL",
-        "po.custom_tyre_request_link != ''",
+        f"{tyre_request_link_expr} IS NOT NULL",
     ]
     values = {}
 
@@ -210,7 +251,7 @@ def get_tyre_purchase_rows(filters=None, ignore_date_filters=False):
             po.supplier,
             po.project,
             po.cost_center,
-            po.custom_tyre_request_link AS tyre_request,
+            {tyre_request_link_expr} AS tyre_request,
             request.vehicle,
             request.license_plate,
             poi.item_code AS item,
@@ -224,7 +265,7 @@ def get_tyre_purchase_rows(filters=None, ignore_date_filters=False):
         INNER JOIN `tabPurchase Order Item` poi
             ON poi.parent = po.name
         INNER JOIN `tabTyre Request` request
-            ON request.name = po.custom_tyre_request_link
+            ON request.name = {tyre_request_link_expr}
         LEFT JOIN `tabItem` item
             ON item.name = poi.item_code
         WHERE {' AND '.join(conditions)}
@@ -238,11 +279,15 @@ def get_tyre_purchase_rows(filters=None, ignore_date_filters=False):
 def get_tyre_purchase_invoice_rows(filters=None, ignore_date_filters=False):
     filters = frappe._dict(filters or {})
     vehicle_names = _get_vehicle_names(filters)
+    tyre_request_link_expr = get_purchase_order_tyre_request_link_expr()
+    if not tyre_request_link_expr:
+        return []
+
     conditions = [
         "pi.docstatus = 1",
         "pii.parenttype = 'Purchase Invoice'",
         "COALESCE(pii.purchase_order, '') != ''",
-        "COALESCE(po.custom_tyre_request_link, '') != ''",
+        f"{tyre_request_link_expr} IS NOT NULL",
     ]
     values = {}
 
@@ -287,7 +332,7 @@ def get_tyre_purchase_invoice_rows(filters=None, ignore_date_filters=False):
             pi.supplier,
             COALESCE(NULLIF(pii.project, ''), po.project) AS project,
             COALESCE(NULLIF(pii.cost_center, ''), po.cost_center) AS cost_center,
-            po.custom_tyre_request_link AS tyre_request,
+            {tyre_request_link_expr} AS tyre_request,
             request.vehicle,
             request.license_plate,
             pii.item_code AS item,
@@ -302,7 +347,7 @@ def get_tyre_purchase_invoice_rows(filters=None, ignore_date_filters=False):
         INNER JOIN `tabPurchase Order` po
             ON po.name = pii.purchase_order
         INNER JOIN `tabTyre Request` request
-            ON request.name = po.custom_tyre_request_link
+            ON request.name = {tyre_request_link_expr}
         LEFT JOIN `tabItem` item
             ON item.name = pii.item_code
         WHERE {' AND '.join(conditions)}

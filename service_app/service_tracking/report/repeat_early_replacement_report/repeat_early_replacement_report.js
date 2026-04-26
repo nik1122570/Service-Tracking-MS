@@ -37,7 +37,7 @@ frappe.query_reports["Repeat Early Replacement Report"] = {
 			fieldname: "wheel_position",
 			label: __("Wheel Position"),
 			fieldtype: "Link",
-			options: "Maintenance Postion"
+			options: "Tyre Position"
 		},
 		{
 			fieldname: "threshold_days",
