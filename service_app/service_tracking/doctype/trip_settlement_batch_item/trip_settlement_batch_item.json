@@ -1,0 +1,147 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-08 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "trip_entitlement_log",
+  "trip_entitlement_row",
+  "container_trip_log",
+  "trip_date",
+  "project",
+  "vehicle",
+  "driver",
+  "container_numbers",
+  "entitlement_type",
+  "item",
+  "quantity",
+  "uom",
+  "rate",
+  "amount",
+  "source_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "trip_entitlement_log",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Trip Entitlement Log",
+   "options": "Trip Entitlement Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trip_entitlement_row",
+   "fieldtype": "Data",
+   "label": "Trip Entitlement Row",
+   "read_only": 1
+  },
+  {
+   "fieldname": "container_trip_log",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Container Trip Log",
+   "options": "Container Trip Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trip_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Trip Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "label": "Vehicle",
+   "options": "Vehicle",
+   "read_only": 1
+  },
+  {
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "label": "Driver",
+   "options": "Drivers",
+   "read_only": 1
+  },
+  {
+   "fieldname": "container_numbers",
+   "fieldtype": "Small Text",
+   "label": "Container Numbers",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entitlement_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Entitlement Type",
+   "options": "\nRevenue\nFuel\nMileage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_status",
+   "fieldtype": "Data",
+   "label": "Source Status",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-08 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Settlement Batch Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

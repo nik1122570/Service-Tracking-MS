@@ -1,0 +1,197 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-05-07 22:48:43.873253",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_lqhy",
+  "container_trip_log",
+  "trip_date",
+  "project",
+  "route",
+  "vehicle",
+  "trailer_1",
+  "trailer_2",
+  "column_break_fdtf",
+  "customer",
+  "driver",
+  "container_count",
+  "container_numbers",
+  "total_fuel_litres",
+  "total_expected_revenue",
+  "expected_mileage_pay",
+  "status",
+  "entitlement_items_section",
+  "entitlement_items",
+  "naming_series",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_lqhy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "container_trip_log",
+   "fieldtype": "Link",
+   "label": "Container Trip Log",
+   "options": "Container Trip Log"
+  },
+  {
+   "fetch_from": "container_trip_log.trip_date",
+   "fieldname": "trip_date",
+   "fieldtype": "Date",
+   "label": "Trip Date"
+  },
+  {
+   "fetch_from": "container_trip_log.project",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fetch_from": "container_trip_log.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fetch_from": "container_trip_log.driver",
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "label": "Driver",
+   "options": "Drivers"
+  },
+  {
+   "fieldname": "container_count",
+   "fieldtype": "Int",
+   "label": "Container Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "container_numbers",
+   "fieldtype": "Small Text",
+   "label": "Container Numbers",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fdtf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "label": "Vehicle",
+   "options": "Vehicle",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trailer_1",
+   "fieldtype": "Link",
+   "label": "Trailer 1",
+   "options": "Trailer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trailer_2",
+   "fieldtype": "Link",
+   "label": "Trailer 2",
+   "options": "Trailer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_fuel_litres",
+   "fieldtype": "Float",
+   "label": "Total Fuel Litres",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_expected_revenue",
+   "fieldtype": "Currency",
+   "label": "Total Expected Revenue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expected_mileage_pay",
+   "fieldtype": "Currency",
+   "label": "Expected Mileage Pay",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nPending\nPartially Processed\nProcessed\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entitlement_items_section",
+   "fieldtype": "Section Break",
+   "label": "Entitlement Items"
+  },
+  {
+   "fieldname": "entitlement_items",
+   "fieldtype": "Table",
+   "label": "Entitlement Items",
+   "options": "Trip Entitlement Table",
+   "read_only": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "TRIP-LOG.-.YYYY.-"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Trip Entitlement Log",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-05-10 00:03:49.066094",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Entitlement Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

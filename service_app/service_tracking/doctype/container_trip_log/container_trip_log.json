@@ -1,0 +1,245 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-05-07 22:48:42.378354",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_gxg0",
+  "trip_date",
+  "project",
+  "vehicle",
+  "trailer_1",
+  "trailer_2",
+  "fuel_litres_entitled_per_trip",
+  "trip_settlement_batch",
+  "column_break_nksq",
+  "transaction_date",
+  "customer",
+  "route",
+  "driver",
+  "expected_revenue",
+  "driver_mileage_per_trip",
+  "trip_entitlement_log",
+  "container_loading_section",
+  "container",
+  "total_qty",
+  "total_expected_revenue",
+  "expected_mileage_pay",
+  "section_break_sjoa",
+  "billing_status",
+  "mileage_status",
+  "fuel_reimbursement_status",
+  "trip_status",
+  "amended_from",
+  "naming_series"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_gxg0",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "trip_date",
+   "fieldtype": "Date",
+   "label": "Trip Date"
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "label": "Vehicle",
+   "options": "Vehicle"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fetch_from": "project.custom_route",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route"
+  },
+  {
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "label": "Driver",
+   "options": "Drivers"
+  },
+  {
+   "fetch_from": "project.custom_rate_per_trip",
+   "fieldname": "expected_revenue",
+   "fieldtype": "Currency",
+   "label": "Expected Revenue"
+  },
+  {
+   "fieldname": "column_break_nksq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "project.custom_fuel_entitlement_litres",
+   "fieldname": "fuel_litres_entitled_per_trip",
+   "fieldtype": "Float",
+   "label": "Fuel Litres Entitled per trip"
+  },
+  {
+   "fetch_from": "project.custom_driver_mileage_per_trip",
+   "fieldname": "driver_mileage_per_trip",
+   "fieldtype": "Currency",
+   "label": "Driver Mileage "
+  },
+  {
+   "default": "Today",
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "label": "Transaction Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trailer_1",
+   "fieldtype": "Link",
+   "label": "Trailer 1",
+   "options": "Trailer"
+  },
+  {
+   "fieldname": "trailer_2",
+   "fieldtype": "Link",
+   "label": "Trailer 2",
+   "options": "Trailer"
+  },
+  {
+   "fieldname": "section_break_sjoa",
+   "fieldtype": "Section Break",
+   "label": "Post Trip Status"
+  },
+  {
+   "default": "Not Billed",
+   "fieldname": "billing_status",
+   "fieldtype": "Select",
+   "label": "Billing Status",
+   "options": "\nBilled\nNot Billed"
+  },
+  {
+   "default": "Not Paid",
+   "fieldname": "mileage_status",
+   "fieldtype": "Select",
+   "label": "Mileage Status",
+   "options": "\nPaid\nNot Paid"
+  },
+  {
+   "default": "Not reimbursed",
+   "fieldname": "fuel_reimbursement_status",
+   "fieldtype": "Select",
+   "label": "Fuel Reimbursement Status",
+   "options": "\nReimbursed\nNot reimbursed"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "trip_status",
+   "fieldtype": "Select",
+   "label": "Trip Status",
+   "options": "\nDraft\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "container",
+   "fieldtype": "Table",
+   "label": "Container",
+   "options": "Container Holder",
+   "reqd": 1
+  },
+  {
+   "fieldname": "container_loading_section",
+   "fieldtype": "Section Break",
+   "label": "Container Loading"
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Int",
+   "label": "Total Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Container Trip Log",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "trip_entitlement_log",
+   "fieldtype": "Link",
+   "label": "Trip Entitlement Log",
+   "options": "Trip Entitlement Log",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "trip_settlement_batch",
+   "fieldtype": "Link",
+   "label": "Trip Settlement Batch",
+   "options": "Trip Settlement Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_expected_revenue",
+   "fieldtype": "Currency",
+   "label": "Total Expected Revenue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expected_mileage_pay",
+   "fieldtype": "Currency",
+   "label": "Expected Mileage Pay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "TRIP-LOG.-.YYYY.-"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-05-10 00:13:45.468363",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Container Trip Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
