@@ -1,0 +1,1 @@
+from service_app.patches.migrate_trip_entitlements_to_container_trip_log import execute

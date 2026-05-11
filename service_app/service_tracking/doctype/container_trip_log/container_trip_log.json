@@ -21,12 +21,13 @@
   "driver",
   "expected_revenue",
   "driver_mileage_per_trip",
-  "trip_entitlement_log",
   "container_loading_section",
   "container",
   "total_qty",
   "total_expected_revenue",
   "expected_mileage_pay",
+  "entitlement_items_section",
+  "entitlement_items",
   "section_break_sjoa",
   "billing_status",
   "mileage_status",
@@ -179,14 +180,6 @@
   },
   {
    "allow_on_submit": 1,
-   "fieldname": "trip_entitlement_log",
-   "fieldtype": "Link",
-   "label": "Trip Entitlement Log",
-   "options": "Trip Entitlement Log",
-   "read_only": 1
-  },
-  {
-   "allow_on_submit": 1,
    "fieldname": "trip_settlement_batch",
    "fieldtype": "Link",
    "label": "Trip Settlement Batch",
@@ -203,6 +196,19 @@
    "fieldname": "expected_mileage_pay",
    "fieldtype": "Currency",
    "label": "Expected Mileage Pay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entitlement_items_section",
+   "fieldtype": "Section Break",
+   "label": "Trip Entitlement Items"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "entitlement_items",
+   "fieldtype": "Table",
+   "label": "Trip Entitlements",
+   "options": "Container Trip Entitlement Item",
    "read_only": 1
   },
   {

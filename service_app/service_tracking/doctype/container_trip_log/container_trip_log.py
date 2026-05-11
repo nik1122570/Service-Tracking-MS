@@ -11,17 +11,10 @@ class ContainerTripLog(Document):
 	def validate(self):
 		self.set_trip_totals()
 		self.validate_container_rows()
+		self.sync_entitlement_items()
 
 	def on_submit(self):
 		self.set_trip_totals()
-		entitlement_log = self.create_trip_entitlement_log()
-		frappe.db.set_value(
-			self.doctype,
-			self.name,
-			"trip_entitlement_log",
-			entitlement_log.name,
-			update_modified=False,
-		)
 		if self.trip_status != "Cancelled":
 			frappe.db.set_value(
 				self.doctype,
@@ -52,47 +45,40 @@ class ContainerTripLog(Document):
 				)
 			seen_containers.add(row.container_id)
 
-	def create_trip_entitlement_log(self):
-		existing_log = self.get_existing_entitlement_log()
-		if existing_log:
-			return frappe.get_doc("Trip Entitlement Log", existing_log)
+		self.validate_containers_not_already_carried(seen_containers)
 
-		entitlement_log = frappe.new_doc("Trip Entitlement Log")
-		entitlement_log.container_trip_log = self.name
-		entitlement_log.trip_date = self.trip_date
-		entitlement_log.project = self.project
-		entitlement_log.customer = self.customer
-		entitlement_log.driver = self.driver
-		entitlement_log.container_count = self.total_qty
+	def validate_containers_not_already_carried(self, container_ids):
+		carried_containers = get_carried_containers(container_ids, self.name)
+		if not carried_containers:
+			return
 
-		set_if_field_exists(entitlement_log, "container_numbers", self.get_container_numbers())
-		set_if_field_exists(entitlement_log, "route", self.route)
-		set_if_field_exists(entitlement_log, "vehicle", self.vehicle)
-		set_if_field_exists(entitlement_log, "trailer_1", self.trailer_1)
-		set_if_field_exists(entitlement_log, "trailer_2", self.trailer_2)
-		set_if_field_exists(entitlement_log, "total_expected_revenue", self.total_expected_revenue)
-		set_if_field_exists(entitlement_log, "expected_mileage_pay", self.expected_mileage_pay)
-		set_if_field_exists(entitlement_log, "total_fuel_litres", self.get_total_fuel_litres())
-		set_if_field_exists(entitlement_log, "status", "Pending")
+		messages = []
+		for row in self.container:
+			carried_trip = carried_containers.get(row.container_id)
+			if not carried_trip:
+				continue
 
+			messages.append(
+				_(
+					"Row {0}: Container {1} was already carried in Trip Log {2} on {3}."
+				).format(
+					row.idx,
+					frappe.bold(row.container_id),
+					frappe.bold(carried_trip.trip_log),
+					frappe.bold(carried_trip.trip_date or ""),
+				)
+			)
+
+		if messages:
+			frappe.throw("<br>".join(messages), title=_("Container Already Carried"))
+
+	def sync_entitlement_items(self):
+		if self.docstatus != 0:
+			return
+
+		self.set("entitlement_items", [])
 		for entitlement_row in self.get_entitlement_rows():
-			entitlement_log.append("entitlement_items", entitlement_row)
-
-		entitlement_log.insert(ignore_permissions=True)
-		if entitlement_log.meta.is_submittable:
-			entitlement_log.submit()
-
-		return entitlement_log
-
-	def get_existing_entitlement_log(self):
-		if self.trip_entitlement_log and frappe.db.exists("Trip Entitlement Log", self.trip_entitlement_log):
-			return self.trip_entitlement_log
-
-		return frappe.db.get_value(
-			"Trip Entitlement Log",
-			{"container_trip_log": self.name, "docstatus": ["!=", 2]},
-			"name",
-		)
+			self.append("entitlement_items", entitlement_row)
 
 	def get_entitlement_rows(self):
 		return [
@@ -132,11 +118,6 @@ class ContainerTripLog(Document):
 		return ", ".join(row.container_id for row in self.get("container") or [] if row.container_id)
 
 
-def set_if_field_exists(doc, fieldname, value):
-	if doc.meta.get_field(fieldname):
-		doc.set(fieldname, value)
-
-
 def get_existing_uom(*uoms):
 	for uom in uoms:
 		if frappe.db.exists("UOM", uom):
@@ -172,3 +153,77 @@ def get_project_item(project, entitlement_type):
 			return project_doc.get(fieldname)
 
 	return None
+
+
+def get_carried_containers(container_ids, current_trip_log=None):
+	container_ids = [container_id for container_id in (container_ids or []) if container_id]
+	if not container_ids:
+		return {}
+
+	placeholders = ", ".join(["%s"] * len(container_ids))
+	values = list(container_ids)
+	current_trip_condition = ""
+
+	if current_trip_log:
+		current_trip_condition = "and trip.name != %s"
+		values.append(current_trip_log)
+
+	rows = frappe.db.sql(
+		f"""
+		select
+			container.container_id,
+			container.parent as trip_log,
+			trip.trip_date,
+			trip.vehicle
+		from `tabContainer Holder` container
+		inner join `tabContainer Trip Log` trip
+			on trip.name = container.parent
+		where container.parenttype = 'Container Trip Log'
+			and container.parentfield = 'container'
+			and container.container_id in ({placeholders})
+			and trip.docstatus = 1
+			and ifnull(trip.trip_status, '') != 'Cancelled'
+			{current_trip_condition}
+		order by trip.trip_date desc, trip.modified desc
+		""",
+		values,
+		as_dict=True,
+	)
+
+	return {row.container_id: row for row in rows}
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_available_containers(doctype, txt, searchfield, start, page_len, filters):
+	current_trip_log = (filters or {}).get("current_trip_log")
+
+	return frappe.db.sql(
+		"""
+		select
+			container.name,
+			container.container_number
+		from `tabAllocated Container` container
+		where (container.name like %(txt)s or container.container_number like %(txt)s)
+			and not exists (
+				select 1
+				from `tabContainer Holder` child
+				inner join `tabContainer Trip Log` trip
+					on trip.name = child.parent
+				where child.parenttype = 'Container Trip Log'
+					and child.parentfield = 'container'
+					and child.container_id = container.name
+					and trip.docstatus = 1
+					and ifnull(trip.trip_status, '') != 'Cancelled'
+					and (%(current_trip_log)s = '' or trip.name != %(current_trip_log)s)
+			)
+		order by container.modified desc
+		limit %(start)s, %(page_len)s
+		""",
+		{
+			"txt": f"%{txt}%",
+			"current_trip_log": current_trip_log or "",
+			"start": start,
+			"page_len": page_len,
+		},
+	)

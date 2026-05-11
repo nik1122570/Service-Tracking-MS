@@ -6,7 +6,6 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "trip_entitlement_log",
   "trip_entitlement_row",
   "container_trip_log",
   "trip_date",
@@ -23,14 +22,6 @@
   "source_status"
  ],
  "fields": [
-  {
-   "fieldname": "trip_entitlement_log",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Trip Entitlement Log",
-   "options": "Trip Entitlement Log",
-   "read_only": 1
-  },
   {
    "fieldname": "trip_entitlement_row",
    "fieldtype": "Data",

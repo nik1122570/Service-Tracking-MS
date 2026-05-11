@@ -61,8 +61,10 @@ def get_columns():
 
 def get_data(filters):
 	conditions = [
-		"log.docstatus = 1",
-		"log.trip_date BETWEEN %(from_date)s AND %(to_date)s",
+		"trip.docstatus = 1",
+		"trip.trip_date BETWEEN %(from_date)s AND %(to_date)s",
+		"item.parenttype = 'Container Trip Log'",
+		"item.parentfield = 'entitlement_items'",
 	]
 	values = {
 		"from_date": filters.from_date,
@@ -70,15 +72,15 @@ def get_data(filters):
 	}
 
 	if filters.get("project"):
-		conditions.append("log.project = %(project)s")
+		conditions.append("trip.project = %(project)s")
 		values["project"] = filters.project
 
 	if filters.get("vehicle"):
-		conditions.append("log.vehicle = %(vehicle)s")
+		conditions.append("trip.vehicle = %(vehicle)s")
 		values["vehicle"] = filters.vehicle
 
 	if filters.get("driver"):
-		conditions.append("log.driver = %(driver)s")
+		conditions.append("trip.driver = %(driver)s")
 		values["driver"] = filters.driver
 
 	if filters.get("entitlement_status"):
@@ -90,14 +92,14 @@ def get_data(filters):
 	rows = frappe.db.sql(
 		f"""
 		SELECT
-			log.project,
-			log.vehicle,
+			trip.project,
+			trip.vehicle,
 			vehicle.license_plate,
-			GROUP_CONCAT(DISTINCT NULLIF(log.driver, '') ORDER BY log.driver SEPARATOR ', ') AS drivers_used,
-			GROUP_CONCAT(DISTINCT NULLIF(log.trailer_1, '') ORDER BY log.trailer_1 SEPARATOR ', ') AS trailer_1_used,
-			GROUP_CONCAT(DISTINCT NULLIF(log.trailer_2, '') ORDER BY log.trailer_2 SEPARATOR ', ') AS trailer_2_used,
-			COUNT(DISTINCT log.container_trip_log) AS trip_count,
-			SUM(CASE WHEN item.entitlement_type = 'Revenue' THEN log.container_count ELSE 0 END) AS container_count,
+			GROUP_CONCAT(DISTINCT NULLIF(trip.driver, '') ORDER BY trip.driver SEPARATOR ', ') AS drivers_used,
+			GROUP_CONCAT(DISTINCT NULLIF(trip.trailer_1, '') ORDER BY trip.trailer_1 SEPARATOR ', ') AS trailer_1_used,
+			GROUP_CONCAT(DISTINCT NULLIF(trip.trailer_2, '') ORDER BY trip.trailer_2 SEPARATOR ', ') AS trailer_2_used,
+			COUNT(DISTINCT trip.name) AS trip_count,
+			SUM(CASE WHEN item.entitlement_type = 'Revenue' THEN item.quantity ELSE 0 END) AS container_count,
 			SUM(CASE WHEN item.entitlement_type = 'Revenue' THEN item.amount ELSE 0 END) AS expected_revenue,
 			SUM(CASE WHEN item.entitlement_type = 'Fuel' THEN item.quantity ELSE 0 END) AS fuel_litres,
 			SUM(CASE WHEN item.entitlement_type = 'Mileage' THEN item.amount ELSE 0 END) AS mileage_demanded,
@@ -105,14 +107,14 @@ def get_data(filters):
 			GROUP_CONCAT(DISTINCT CASE WHEN item.entitlement_type = 'Fuel' THEN item.status END ORDER BY item.status SEPARATOR ', ') AS fuel_status,
 			GROUP_CONCAT(DISTINCT CASE WHEN item.entitlement_type = 'Mileage' THEN item.status END ORDER BY item.status SEPARATOR ', ') AS mileage_status,
 			GROUP_CONCAT(DISTINCT NULLIF(item.trip_settlement_batch, '') ORDER BY item.trip_settlement_batch SEPARATOR ', ') AS settlement_batches
-		FROM `tabTrip Entitlement Log` log
-		INNER JOIN `tabTrip Entitlement Table` item
-			ON item.parent = log.name
+		FROM `tabContainer Trip Log` trip
+		INNER JOIN `tabContainer Trip Entitlement Item` item
+			ON item.parent = trip.name
 		LEFT JOIN `tabVehicle` vehicle
-			ON vehicle.name = log.vehicle
+			ON vehicle.name = trip.vehicle
 		WHERE {' AND '.join(conditions)}
-		GROUP BY log.project, log.vehicle, vehicle.license_plate
-		ORDER BY log.project ASC, log.vehicle ASC
+		GROUP BY trip.project, trip.vehicle, vehicle.license_plate
+		ORDER BY trip.project ASC, trip.vehicle ASC
 		""",
 		values,
 		as_dict=True,
@@ -152,3 +154,4 @@ def get_chart_data(data):
 		},
 		"type": "bar",
 	}
+

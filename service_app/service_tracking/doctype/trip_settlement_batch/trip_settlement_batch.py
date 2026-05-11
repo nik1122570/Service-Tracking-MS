@@ -83,6 +83,9 @@ class TripSettlementBatch(Document):
 
 		for row in self.items:
 			source_row = get_entitlement_child_row(row.trip_entitlement_row)
+			if not source_row:
+				frappe.throw(_("Trip Entitlement Row {0} no longer exists.").format(row.trip_entitlement_row))
+
 			if source_row.status != "Batched" or source_row.trip_settlement_batch != self.name:
 				frappe.throw(
 					_("Row {0}: Source entitlement must be Batched in this Trip Settlement Batch.").format(row.idx)
@@ -111,21 +114,18 @@ class TripSettlementBatch(Document):
 		for item in self.get_grouped_items():
 			doc.append(
 				"items",
-				{
-					"item_code": item.item_code,
-					"item_name": item.item_name,
-					"description": self.get_item_description(item),
-					"qty": item.quantity,
-					"uom": item.uom,
-					"stock_uom": item.stock_uom,
-					"conversion_factor": 1,
-					"rate": item.rate,
-					"base_rate": item.rate,
-					"amount": item.quantity * item.rate,
-					"base_amount": item.quantity * item.rate,
-					"delivery_date": self.end_date or today(),
-					"project": self.project,
-				},
+				get_target_item_row(
+					item,
+					"Sales Order Item",
+					self.get_item_description(item),
+					{
+						"rate": item.rate,
+						"base_rate": item.rate,
+						"amount": item.quantity * item.rate,
+						"base_amount": item.quantity * item.rate,
+						"delivery_date": self.end_date or today(),
+					},
+				),
 			)
 
 		return doc
@@ -142,17 +142,12 @@ class TripSettlementBatch(Document):
 		for item in self.get_grouped_items(include_rate=False):
 			doc.append(
 				"items",
-				{
-					"item_code": item.item_code,
-					"item_name": item.item_name,
-					"description": self.get_item_description(item),
-					"qty": item.quantity,
-					"uom": item.uom,
-					"stock_uom": item.stock_uom,
-					"conversion_factor": 1,
-					"schedule_date": self.end_date or today(),
-					"project": self.project,
-				},
+				get_target_item_row(
+					item,
+					"Material Request Item",
+					self.get_item_description(item),
+					{"schedule_date": self.end_date or today()},
+				),
 			)
 
 		return doc
@@ -175,21 +170,18 @@ class TripSettlementBatch(Document):
 		for item in self.get_grouped_items():
 			doc.append(
 				"items",
-				{
-					"item_code": item.item_code,
-					"item_name": item.item_name,
-					"description": self.get_item_description(item),
-					"qty": item.quantity,
-					"uom": item.uom,
-					"stock_uom": item.stock_uom,
-					"conversion_factor": 1,
-					"rate": item.rate,
-					"base_rate": item.rate,
-					"amount": item.quantity * item.rate,
-					"base_amount": item.quantity * item.rate,
-					"schedule_date": self.end_date or today(),
-					"project": self.project,
-				},
+				get_target_item_row(
+					item,
+					"Purchase Order Item",
+					self.get_item_description(item),
+					{
+						"rate": item.rate,
+						"base_rate": item.rate,
+						"amount": item.quantity * item.rate,
+						"base_amount": item.quantity * item.rate,
+						"schedule_date": self.end_date or today(),
+					},
+				),
 			)
 
 		return doc
@@ -202,10 +194,12 @@ class TripSettlementBatch(Document):
 		for row in self.items:
 			uom = row.uom or item_details.stock_uom
 			rate = flt(row.rate) if include_rate else 0
-			key = (project_item, uom, rate)
+			key = (row.vehicle, project_item, uom, rate)
 			bucket = grouped_items.setdefault(
 				key,
 				frappe._dict(
+					vehicle=row.vehicle,
+					project=self.project,
 					item_code=project_item,
 					item_name=item_details.item_name,
 					stock_uom=item_details.stock_uom,
@@ -231,10 +225,11 @@ class TripSettlementBatch(Document):
 
 	def get_item_description(self, item):
 		return _(
-			"{0} settlement for Trip Settlement Batch {1}. Period: {2} to {3}. Trips: {4}."
+			"{0} settlement for Trip Settlement Batch {1}. Vehicle: {2}. Period: {3} to {4}. Trips: {5}."
 		).format(
 			self.settlement_type,
 			self.name,
+			item.vehicle or "-",
 			frappe.format(self.start_date, {"fieldtype": "Date"}),
 			frappe.format(self.end_date, {"fieldtype": "Date"}),
 			", ".join(sorted(item.container_trip_logs)) or "-",
@@ -254,7 +249,7 @@ class TripSettlementBatch(Document):
 
 		for row in self.items:
 			frappe.db.set_value(
-				"Trip Entitlement Table",
+				"Container Trip Entitlement Item",
 				row.trip_entitlement_row,
 				{
 					"status": "Processed",
@@ -271,7 +266,7 @@ class TripSettlementBatch(Document):
 				"Processed",
 				update_modified=False,
 			)
-			update_entitlement_log_status(row.trip_entitlement_log)
+			update_container_trip_log_status(row.container_trip_log)
 
 		self.target_doctype = target_doctype
 		self.target_document = target_document
@@ -352,6 +347,11 @@ class TripSettlementBatch(Document):
 			if not source_row:
 				frappe.throw(_("Trip Entitlement Row {0} no longer exists.").format(row.trip_entitlement_row))
 
+			if source_row.parenttype != "Container Trip Log" or source_row.parentfield != "entitlement_items":
+				frappe.throw(
+					_("Row {0}: Source entitlement must belong to a Container Trip Log.").format(row.idx)
+				)
+
 			if source_row.entitlement_type != self.settlement_type:
 				frappe.throw(
 					_("Row {0}: Source entitlement type must be {1}.").format(row.idx, self.settlement_type)
@@ -369,27 +369,27 @@ class TripSettlementBatch(Document):
 					)
 				)
 
-			source_log = get_entitlement_log(source_row.parent)
-			if not source_log:
-				frappe.throw(_("Trip Entitlement Log {0} no longer exists.").format(source_row.parent))
+			source_trip = get_container_trip_log(source_row.parent)
+			if not source_trip:
+				frappe.throw(_("Container Trip Log {0} no longer exists.").format(source_row.parent))
 
-			if source_log.docstatus != 1:
-				frappe.throw(_("Trip Entitlement Log {0} must be submitted.").format(source_log.name))
+			if source_trip.docstatus != 1:
+				frappe.throw(_("Container Trip Log {0} must be submitted.").format(source_trip.name))
 
-			self.validate_item_matches_filters(row, source_row, source_log)
+			self.validate_item_matches_filters(row, source_row, source_trip)
 
-	def validate_item_matches_filters(self, row, source_row, source_log):
-		if source_log.project != self.project:
+	def validate_item_matches_filters(self, row, source_row, source_trip):
+		if source_trip.project != self.project:
 			frappe.throw(_("Row {0}: Source project does not match this batch.").format(row.idx))
 
-		if self.vehicle and source_log.vehicle != self.vehicle:
+		if self.vehicle and source_trip.vehicle != self.vehicle:
 			frappe.throw(_("Row {0}: Source vehicle does not match this batch.").format(row.idx))
 
-		if getdate(source_log.trip_date) < getdate(self.start_date) or getdate(source_log.trip_date) > getdate(self.end_date):
+		if getdate(source_trip.trip_date) < getdate(self.start_date) or getdate(source_trip.trip_date) > getdate(self.end_date):
 			frappe.throw(_("Row {0}: Source trip date is outside this batch period.").format(row.idx))
 
-		if row.trip_entitlement_log != source_log.name:
-			frappe.throw(_("Row {0}: Trip Entitlement Log reference is incorrect.").format(row.idx))
+		if row.container_trip_log != source_trip.name:
+			frappe.throw(_("Row {0}: Container Trip Log reference is incorrect.").format(row.idx))
 
 		if row.entitlement_type != source_row.entitlement_type:
 			frappe.throw(_("Row {0}: Entitlement Type does not match the source row.").format(row.idx))
@@ -409,7 +409,7 @@ class TripSettlementBatch(Document):
 	def update_source_entitlements(self, status):
 		for row in self.get("items") or []:
 			frappe.db.set_value(
-				"Trip Entitlement Table",
+				"Container Trip Entitlement Item",
 				row.trip_entitlement_row,
 				{
 					"status": status,
@@ -424,7 +424,7 @@ class TripSettlementBatch(Document):
 				status,
 				update_modified=False,
 			)
-			update_entitlement_log_status(row.trip_entitlement_log)
+			update_container_trip_log_status(row.container_trip_log)
 
 	def release_source_entitlements(self):
 		for row in self.get("items") or []:
@@ -440,7 +440,7 @@ class TripSettlementBatch(Document):
 				)
 
 			frappe.db.set_value(
-				"Trip Entitlement Table",
+				"Container Trip Entitlement Item",
 				row.trip_entitlement_row,
 				{
 					"status": "Pending",
@@ -457,7 +457,7 @@ class TripSettlementBatch(Document):
 				"Pending",
 				update_modified=False,
 			)
-			update_entitlement_log_status(row.trip_entitlement_log)
+			update_container_trip_log_status(row.container_trip_log)
 
 
 @frappe.whitelist()
@@ -469,9 +469,11 @@ def get_pending_entitlements(settlement_type, start_date, end_date, project, veh
 		frappe.throw(_("Start Date cannot be greater than End Date."))
 
 	conditions = [
-		"log.docstatus = 1",
-		"log.project = %(project)s",
-		"log.trip_date BETWEEN %(start_date)s AND %(end_date)s",
+		"trip.docstatus = 1",
+		"trip.project = %(project)s",
+		"trip.trip_date BETWEEN %(start_date)s AND %(end_date)s",
+		"item.parenttype = 'Container Trip Log'",
+		"item.parentfield = 'entitlement_items'",
 		"item.entitlement_type = %(settlement_type)s",
 		"item.status = 'Pending'",
 		"COALESCE(item.trip_settlement_batch, '') = ''",
@@ -484,20 +486,25 @@ def get_pending_entitlements(settlement_type, start_date, end_date, project, veh
 	}
 
 	if vehicle:
-		conditions.append("log.vehicle = %(vehicle)s")
+		conditions.append("trip.vehicle = %(vehicle)s")
 		values["vehicle"] = vehicle
 
 	return frappe.db.sql(
 		f"""
 		SELECT
-			log.name AS trip_entitlement_log,
 			item.name AS trip_entitlement_row,
-			log.container_trip_log,
-			log.trip_date,
-			log.project,
-			log.vehicle,
-			log.driver,
-			log.container_numbers,
+			trip.name AS container_trip_log,
+			trip.trip_date,
+			trip.project,
+			trip.vehicle,
+			trip.driver,
+			(
+				SELECT GROUP_CONCAT(container.container_id ORDER BY container.idx SEPARATOR ', ')
+				FROM `tabContainer Holder` container
+				WHERE container.parent = trip.name
+					AND container.parenttype = 'Container Trip Log'
+					AND container.parentfield = 'container'
+			) AS container_numbers,
 			item.entitlement_type,
 			item.item,
 			item.quantity,
@@ -505,11 +512,11 @@ def get_pending_entitlements(settlement_type, start_date, end_date, project, veh
 			item.rate,
 			item.amount,
 			item.status AS source_status
-		FROM `tabTrip Entitlement Table` item
-		INNER JOIN `tabTrip Entitlement Log` log
-			ON log.name = item.parent
+		FROM `tabContainer Trip Entitlement Item` item
+		INNER JOIN `tabContainer Trip Log` trip
+			ON trip.name = item.parent
 		WHERE {' AND '.join(conditions)}
-		ORDER BY log.trip_date ASC, log.name ASC, item.idx ASC
+		ORDER BY trip.trip_date ASC, trip.name ASC, item.idx ASC
 		""",
 		values,
 		as_dict=True,
@@ -518,11 +525,13 @@ def get_pending_entitlements(settlement_type, start_date, end_date, project, veh
 
 def get_entitlement_child_row(row_name):
 	return frappe.db.get_value(
-		"Trip Entitlement Table",
+		"Container Trip Entitlement Item",
 		row_name,
 		[
 			"name",
 			"parent",
+			"parenttype",
+			"parentfield",
 			"entitlement_type",
 			"item",
 			"quantity",
@@ -536,14 +545,13 @@ def get_entitlement_child_row(row_name):
 	)
 
 
-def get_entitlement_log(log_name):
+def get_container_trip_log(trip_log):
 	return frappe.db.get_value(
-		"Trip Entitlement Log",
-		log_name,
+		"Container Trip Log",
+		trip_log,
 		[
 			"name",
 			"docstatus",
-			"container_trip_log",
 			"trip_date",
 			"project",
 			"vehicle",
@@ -552,27 +560,44 @@ def get_entitlement_log(log_name):
 	)
 
 
-def update_entitlement_log_status(log_name):
-	statuses = [
-		row.status
-		for row in frappe.get_all(
-			"Trip Entitlement Table",
-			filters={"parent": log_name},
-			fields=["status"],
-		)
-	]
-
-	if not statuses:
+def update_container_trip_log_status(trip_log):
+	if not trip_log:
 		return
 
-	if all(status == "Pending" for status in statuses):
-		status = "Pending"
-	elif all(status == "Processed" for status in statuses):
-		status = "Processed"
-	else:
-		status = "Partially Processed"
+	rows = frappe.get_all(
+		"Container Trip Entitlement Item",
+		filters={
+			"parent": trip_log,
+			"parenttype": "Container Trip Log",
+			"parentfield": "entitlement_items",
+		},
+		fields=["entitlement_type", "status", "trip_settlement_batch"],
+	)
+	if not rows:
+		return
 
-	frappe.db.set_value("Trip Entitlement Log", log_name, "status", status, update_modified=False)
+	rows_by_type = {}
+	for row in rows:
+		rows_by_type.setdefault(row.entitlement_type, []).append(row)
+
+	updates = {}
+	if all(row.status == "Processed" for row in rows_by_type.get("Revenue", [])):
+		updates["billing_status"] = "Billed"
+	elif rows_by_type.get("Revenue"):
+		updates["billing_status"] = "Not Billed"
+
+	if all(row.status == "Processed" for row in rows_by_type.get("Fuel", [])):
+		updates["fuel_reimbursement_status"] = "Reimbursed"
+	elif rows_by_type.get("Fuel"):
+		updates["fuel_reimbursement_status"] = "Not reimbursed"
+
+	if all(row.status == "Processed" for row in rows_by_type.get("Mileage", [])):
+		updates["mileage_status"] = "Paid"
+	elif rows_by_type.get("Mileage"):
+		updates["mileage_status"] = "Not Paid"
+
+	if updates:
+		frappe.db.set_value("Container Trip Log", trip_log, updates, update_modified=False)
 
 
 @frappe.whitelist()
@@ -632,6 +657,35 @@ def get_item_details(item_code):
 	return item_details
 
 
+def get_target_item_row(item, child_doctype, description, extra_values=None):
+	row = {
+		"item_code": item.item_code,
+		"item_name": item.item_name,
+		"description": description,
+		"qty": item.quantity,
+		"uom": item.uom,
+		"stock_uom": item.stock_uom,
+		"conversion_factor": 1,
+		"project": item.project,
+	}
+	row.update(extra_values or {})
+
+	set_vehicle_on_target_item_row(row, item.vehicle, child_doctype)
+
+	return row
+
+
+def set_vehicle_on_target_item_row(row, vehicle, child_doctype):
+	if not vehicle:
+		return
+
+	meta = frappe.get_meta(child_doctype)
+	for fieldname in ("vehicle", "custom_vehicle", "truck", "custom_truck"):
+		if meta.get_field(fieldname):
+			row[fieldname] = vehicle
+			return
+
+
 def set_default_company(doc):
 	if not doc.meta.get_field("company"):
 		return
@@ -681,3 +735,4 @@ def set_compatible_field(doc, fieldnames, value):
 	for fieldname in fieldnames:
 		if doc.meta.get_field(fieldname):
 			doc.set(fieldname, value)
+

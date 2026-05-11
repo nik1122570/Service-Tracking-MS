@@ -10,7 +10,7 @@
  "name": "Trip Entitlement Summary Report",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "Trip Entitlement Log",
+ "ref_doctype": "Container Trip Log",
  "report_name": "Trip Entitlement Summary Report",
  "report_type": "Script Report",
  "roles": [
