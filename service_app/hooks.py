@@ -70,6 +70,7 @@ STANDARD_CUSTOMIZED_DOCTYPES = [
 	"Packed Item",
 	"Pick List",
 	"Print Settings",
+	"Project",
 	"Purchase Invoice",
 	"Purchase Invoice Item",
 	"Purchase Order",
