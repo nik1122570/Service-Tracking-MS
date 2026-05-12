@@ -1,0 +1,32 @@
+{
+ "custom_fields": [],
+ "custom_perms": [],
+ "doctype": "Project",
+ "links": [],
+ "property_setters": [
+  {
+   "_assign": null,
+   "_comments": null,
+   "_liked_by": null,
+   "_user_tags": null,
+   "creation": "2026-05-12 15:38:50.802341",
+   "default_value": null,
+   "doc_type": "Project",
+   "docstatus": 0,
+   "doctype_or_field": "DocField",
+   "field_name": "naming_series",
+   "idx": 0,
+   "is_system_generated": 1,
+   "modified": "2026-05-12 15:38:50.802341",
+   "modified_by": "Administrator",
+   "module": null,
+   "name": "Project-naming_series-options",
+   "owner": "Administrator",
+   "property": "options",
+   "property_type": "Text",
+   "row_name": null,
+   "value": "PROJ-.####"
+  }
+ ],
+ "sync_on_migrate": 1
+}
