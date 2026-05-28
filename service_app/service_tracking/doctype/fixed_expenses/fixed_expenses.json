@@ -1,0 +1,100 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:description",
+ "creation": "2023-05-04 13:00:25.291565",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "expense_details_section",
+  "description",
+  "currency",
+  "is_payable",
+  "column_break_d5ipf",
+  "fixed_value",
+  "calculation_method",
+  "item"
+ ],
+ "fields": [
+  {
+   "fieldname": "expense_details_section",
+   "fieldtype": "Section Break",
+   "label": "Expense Details"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Expenses Description",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_d5ipf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fixed_value",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Fixed Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "calculation_method",
+   "fieldtype": "Select",
+   "label": "Calculation method",
+   "options": "\nPer Trip Day\nSalary Allocation\nVehicle Depreciation"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_payable",
+   "fieldtype": "Check",
+   "label": "Is Payable"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-28 11:55:44.870201",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Fixed Expenses",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

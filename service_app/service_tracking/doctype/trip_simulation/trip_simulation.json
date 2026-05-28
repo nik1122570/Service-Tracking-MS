@@ -1,0 +1,376 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-05-28 12:37:39.647379",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_3mcj",
+  "transaction_date",
+  "departure_date",
+  "days_in_trip",
+  "column_break_uvtt",
+  "route",
+  "return_date",
+  "project",
+  "cost_center",
+  "column_break_sydu",
+  "driver",
+  "supplier",
+  "vehicle",
+  "trailer",
+  "revenue_details_section",
+  "revenue",
+  "column_break_tczi",
+  "customer",
+  "constants_section",
+  "salaries",
+  "depreciation",
+  "column_break_fsri",
+  "vehicle_costs",
+  "active_vehicles",
+  "trip_expenses_tab",
+  "fuel_costs_section",
+  "fuel_supplier",
+  "create_fuel_purchase_order",
+  "fuel",
+  "total_fuel_consumption_qty_ratio",
+  "total_distance_km",
+  "fuel_price",
+  "total_fuel_costs",
+  "fuel_item",
+  "fuel_purchase_order",
+  "trip_expenses_section",
+  "trip_expenses_outline",
+  "amended_from",
+  "trip_profitability_analysis_tab",
+  "expected_revenue",
+  "trip_gross_profit_amount",
+  "targeted_gross_profit",
+  "column_break_xgja",
+  "total_trip_cost",
+  "trip_gross_profit",
+  "naming_series"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_3mcj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Route",
+   "options": "Simulation Routes",
+   "reqd": 1
+  },
+  {
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "label": "Driver",
+   "options": "Drivers",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "trip_expenses_section",
+   "fieldtype": "Section Break",
+   "label": "Trip Expenses"
+  },
+  {
+   "fetch_from": "link_fwxp.grand_total",
+   "fieldname": "revenue",
+   "fieldtype": "Link",
+   "label": "Quotation",
+   "options": "Quotation",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trip_expenses_outline",
+   "fieldtype": "Table",
+   "label": "Trip Expenses Outline",
+   "options": "Trip Simulation Table",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_trip_cost",
+   "fieldtype": "Currency",
+   "label": "Total Trip Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trip_gross_profit_amount",
+   "fieldtype": "Currency",
+   "label": "Trip Gross Profit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trip_gross_profit",
+   "fieldtype": "Percent",
+   "label": "Trip Gross Profit %",
+   "precision": "4",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Trip Simulation",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "bold": 1,
+   "fetch_from": "revenue.grand_total",
+   "fieldname": "expected_revenue",
+   "fieldtype": "Currency",
+   "label": "Expected Revenue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fuel_costs_section",
+   "fieldtype": "Section Break",
+   "label": "Fuel Costs"
+  },
+  {
+   "fieldname": "fuel",
+   "fieldtype": "Table",
+   "label": "Fuel",
+   "options": "Trip Steps",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fuel_price",
+   "fieldtype": "Currency",
+   "label": "Fuel Price",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "total_distance_km",
+   "fieldtype": "Int",
+   "label": "Total Distance (km)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "departure_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Departure Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "return_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Return Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_uvtt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_sydu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "revenue_details_section",
+   "fieldtype": "Section Break",
+   "label": "Revenue Details"
+  },
+  {
+   "fieldname": "column_break_tczi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "bold": 1,
+   "fetch_from": "revenue.customer_name",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "days_in_trip",
+   "fieldtype": "Int",
+   "label": "Days in Trip",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trip_expenses_tab",
+   "fieldtype": "Tab Break",
+   "label": "Trip Expenses"
+  },
+  {
+   "fieldname": "trip_profitability_analysis_tab",
+   "fieldtype": "Tab Break",
+   "label": "Trip Profitability Analysis"
+  },
+  {
+   "fieldname": "targeted_gross_profit",
+   "fieldtype": "Percent",
+   "label": "Targeted Gross Profit"
+  },
+  {
+   "fieldname": "total_fuel_costs",
+   "fieldtype": "Currency",
+   "label": "Total Fuel Costs",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_fuel_consumption_qty_ratio",
+   "fieldtype": "Int",
+   "label": "Total Fuel Consumption Ratio",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_xgja",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "constants_section",
+   "fieldtype": "Section Break",
+   "label": "Constants"
+  },
+  {
+   "fieldname": "salaries",
+   "fieldtype": "Currency",
+   "label": "Salaries"
+  },
+  {
+   "fieldname": "active_vehicles",
+   "fieldtype": "Int",
+   "label": "Active Vehicles"
+  },
+  {
+   "fieldname": "vehicle_costs",
+   "fieldtype": "Currency",
+   "label": "Vehicle Costs"
+  },
+  {
+   "fieldname": "depreciation",
+   "fieldtype": "Currency",
+   "label": "Depreciation"
+  },
+  {
+   "fieldname": "column_break_fsri",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "TRIP-SIM-.YYYY.-.#####"
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Supplier",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "label": "Vehicle",
+   "options": "Vehicle"
+  },
+  {
+   "fieldname": "trailer",
+   "fieldtype": "Link",
+   "label": "Trailer",
+   "options": "Trailer"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "fuel_supplier",
+   "fieldtype": "Link",
+   "label": "Fuel Supplier",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "create_fuel_purchase_order",
+   "fieldtype": "Button",
+   "label": "Create Purchase Order"
+  },
+  {
+   "fieldname": "fuel_item",
+   "fieldtype": "Link",
+   "label": "Fuel Item",
+   "options": "Item"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "fuel_purchase_order",
+   "fieldtype": "Link",
+   "label": "Fuel Purchase Order",
+   "options": "Purchase Order",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Purchase Order",
+   "link_fieldname": "custom_trip_simulation"
+  }
+ ],
+ "modified": "2026-05-29 00:37:45.010564",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Simulation",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

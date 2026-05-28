@@ -1,0 +1,57 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2023-05-05 10:28:30.210610",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "expense",
+  "currency",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "expense",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Expense",
+   "options": "Fixed Expenses",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "expense.currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "expense.fixed_value",
+   "fetch_if_empty": 1,
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "options": "currency",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-25 21:08:55.863510",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Fixed Expenses Table",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "show_name_in_global_search": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
