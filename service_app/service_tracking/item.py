@@ -2,7 +2,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import cint, cstr, flt
+from frappe.utils import cstr, flt
 from service_app.service_tracking.vehicle_make_controls import ensure_vehicle_make_enabled
 
 SPARE_PARTS_ITEM_GROUP = "Spare Parts"
@@ -16,7 +16,6 @@ ITEM_WARRANTY_FIELD_CANDIDATES = (
 
 def validate_spare_part_part_category(doc, method=None):
     _validate_item_make_enabled(doc)
-    _validate_spare_part_make_requirement(doc)
     _apply_default_price_list_from_make(doc)
 
     if doc.meta.get_field("part_category"):
@@ -53,35 +52,6 @@ def get_make_default_price_list(make):
 
 def _is_spare_parts_item(item_group):
     return cstr(item_group).strip().casefold() == SPARE_PARTS_ITEM_GROUP.casefold()
-
-
-def _is_universal_item(doc):
-    if not doc.meta.get_field("is_universal"):
-        return False
-    return bool(cint(getattr(doc, "is_universal", 0) or 0))
-
-
-def _validate_spare_part_make_requirement(doc):
-    if not _is_spare_parts_item(getattr(doc, "item_group", None)):
-        return
-
-    if not doc.meta.get_field("make"):
-        return
-
-    if _is_universal_item(doc):
-        return
-
-    make = cstr(getattr(doc, "make", "")).strip()
-    if make:
-        return
-
-    frappe.throw(
-        _("Make is required for {0} unless {1} is checked.").format(
-            frappe.bold(SPARE_PARTS_ITEM_GROUP),
-            frappe.bold("Is Universal"),
-        ),
-        title=_("Missing Make"),
-    )
 
 
 def _validate_item_make_enabled(doc):

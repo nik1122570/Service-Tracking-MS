@@ -45,6 +45,173 @@ class TripSettlementBatch(Document):
 		self.release_source_entitlements()
 		self.db_set("status", "Cancelled", update_modified=False)
 
+	def unreconcile(self):
+		self.validate_can_unreconcile()
+
+		linked_trip_logs = set()
+		released_rows = 0
+
+		for row in self.get("items") or []:
+			if row.container_trip_log:
+				linked_trip_logs.add(row.container_trip_log)
+
+			source_row = get_entitlement_child_row(row.trip_entitlement_row)
+			if not source_row or source_row.trip_settlement_batch != self.name:
+				continue
+
+			frappe.db.set_value(
+				"Container Trip Entitlement Item",
+				row.trip_entitlement_row,
+				{
+					"status": "Pending",
+					"trip_settlement_batch": None,
+					"target_doctype": None,
+					"target_document": None,
+				},
+				update_modified=False,
+			)
+			released_rows += 1
+
+		for row in self.get("items") or []:
+			frappe.db.set_value(
+				"Trip Settlement Batch Item",
+				row.name,
+				{
+					"container_trip_log": None,
+					"source_status": "Pending",
+				},
+				update_modified=False,
+			)
+
+		for trip_log in linked_trip_logs:
+			if frappe.db.get_value("Container Trip Log", trip_log, "trip_settlement_batch") == self.name:
+				frappe.db.set_value(
+					"Container Trip Log",
+					trip_log,
+					"trip_settlement_batch",
+					None,
+					update_modified=False,
+				)
+			update_container_trip_log_status(trip_log)
+
+		self.db_set("status", "Unreconciled", update_modified=False)
+		self.status = "Unreconciled"
+
+		return {
+			"released_rows": released_rows,
+			"trip_logs": sorted(linked_trip_logs),
+		}
+
+	def unlink_target_document(self):
+		self.validate_can_unlink_target_document()
+
+		target = {
+			"doctype": self.target_doctype,
+			"name": self.target_document,
+		}
+		relinked_rows = 0
+
+		for row in self.get("items") or []:
+			source_row = get_entitlement_child_row(row.trip_entitlement_row)
+			if not source_row or source_row.trip_settlement_batch != self.name:
+				continue
+
+			if (
+				source_row.target_doctype
+				and source_row.target_document
+				and (
+					source_row.target_doctype != self.target_doctype
+					or source_row.target_document != self.target_document
+				)
+			):
+				frappe.throw(
+					_("Trip Entitlement Row {0} is linked to another target document {1} {2}.").format(
+						row.trip_entitlement_row,
+						source_row.target_doctype,
+						source_row.target_document,
+					)
+				)
+
+			frappe.db.set_value(
+				"Container Trip Entitlement Item",
+				row.trip_entitlement_row,
+				{
+					"status": "Batched",
+					"target_doctype": None,
+					"target_document": None,
+				},
+				update_modified=False,
+			)
+			frappe.db.set_value(
+				"Trip Settlement Batch Item",
+				row.name,
+				"source_status",
+				"Batched",
+				update_modified=False,
+			)
+			update_container_trip_log_status(row.container_trip_log)
+			relinked_rows += 1
+
+		frappe.db.set_value(
+			self.doctype,
+			self.name,
+			{
+				"target_document": None,
+				"status": "Submitted",
+			},
+			update_modified=False,
+		)
+
+		self.target_document = None
+		self.status = "Submitted"
+
+		return {
+			"target": target,
+			"relinked_rows": relinked_rows,
+		}
+
+	def validate_can_unlink_target_document(self):
+		if self.docstatus != 1:
+			frappe.throw(_("Only submitted Trip Settlement Batches can unlink ERPNext documents."))
+
+		if not self.target_document:
+			frappe.throw(_("This Trip Settlement Batch is not linked to an ERPNext document."))
+
+		for row in self.get("items") or []:
+			source_row = get_entitlement_child_row(row.trip_entitlement_row)
+			if not source_row or source_row.trip_settlement_batch != self.name:
+				continue
+
+			if source_row.status != "Processed":
+				frappe.throw(
+					_("Trip Entitlement Row {0} must be Processed before unlinking the ERPNext document.").format(
+						row.trip_entitlement_row
+					)
+				)
+
+	def validate_can_unreconcile(self):
+		if self.docstatus != 1:
+			frappe.throw(_("Only submitted Trip Settlement Batches can be unreconciled."))
+
+		if self.target_document:
+			frappe.throw(
+				_(
+					"This batch has already created {0} {1}. Cancel or reverse that document before unreconciling this batch."
+				).format(self.target_doctype, self.target_document)
+			)
+
+		for row in self.get("items") or []:
+			source_row = get_entitlement_child_row(row.trip_entitlement_row)
+			if not source_row or source_row.trip_settlement_batch != self.name:
+				continue
+
+			if source_row.status == "Processed" or source_row.target_document:
+				frappe.throw(
+					_("Trip Entitlement Row {0} is already Processed and cannot be unreconciled.").format(
+						row.trip_entitlement_row
+					)
+				)
+
 	def create_erpnext_document(self):
 		self.validate_can_create_erpnext_document()
 
@@ -540,6 +707,8 @@ def get_entitlement_child_row(row_name):
 			"amount",
 			"status",
 			"trip_settlement_batch",
+			"target_doctype",
+			"target_document",
 		],
 		as_dict=True,
 	)
@@ -609,6 +778,141 @@ def create_erpnext_document(source_name):
 		"doctype": target_doc.doctype,
 		"name": target_doc.name,
 	}
+
+
+@frappe.whitelist()
+def unreconcile_batch(source_name):
+	doc = frappe.get_doc("Trip Settlement Batch", source_name)
+	doc.check_permission("cancel")
+	result = doc.unreconcile()
+
+	return result
+
+
+@frappe.whitelist()
+def unlink_target_document(source_name):
+	doc = frappe.get_doc("Trip Settlement Batch", source_name)
+	doc.check_permission("cancel")
+	result = doc.unlink_target_document()
+
+	return result
+
+
+@frappe.whitelist()
+def get_target_document_settlement_batches(target_doctype, target_document):
+	if not target_doctype or not target_document:
+		frappe.throw(_("Target document is required."))
+
+	if target_doctype not in ("Sales Order", "Material Request", "Purchase Order"):
+		frappe.throw(_("Unsupported target document type {0}.").format(target_doctype))
+
+	if not frappe.db.exists(target_doctype, target_document):
+		frappe.throw(_("{0} {1} was not found.").format(target_doctype, target_document))
+
+	frappe.get_doc(target_doctype, target_document).check_permission("read")
+
+	return frappe.get_all(
+		"Trip Settlement Batch",
+		filters={
+			"docstatus": 1,
+			"target_doctype": target_doctype,
+			"target_document": target_document,
+		},
+		fields=["name", "settlement_type", "status"],
+		order_by="modified desc",
+	)
+
+
+@frappe.whitelist()
+def unlink_target_document_settlement_batches(target_doctype, target_document):
+	if not target_doctype or not target_document:
+		frappe.throw(_("Target document is required."))
+
+	if target_doctype not in ("Sales Order", "Material Request", "Purchase Order"):
+		frappe.throw(_("Unsupported target document type {0}.").format(target_doctype))
+
+	frappe.get_doc(target_doctype, target_document).check_permission("cancel")
+	batches = get_target_document_settlement_batches(target_doctype, target_document)
+	results = []
+
+	for batch in batches:
+		doc = frappe.get_doc("Trip Settlement Batch", batch.name)
+		doc.check_permission("cancel")
+		result = doc.unlink_target_document()
+		results.append(
+			{
+				"name": batch.name,
+				"relinked_rows": result.get("relinked_rows", 0),
+			}
+		)
+
+	return results
+
+
+@frappe.whitelist()
+def get_linked_settlement_batches(trip_log):
+	if not trip_log:
+		frappe.throw(_("Container Trip Log is required."))
+
+	if not frappe.db.exists("Container Trip Log", trip_log):
+		frappe.throw(_("Container Trip Log {0} was not found.").format(trip_log))
+
+	frappe.get_doc("Container Trip Log", trip_log).check_permission("read")
+
+	batch_names = set(
+		frappe.get_all(
+			"Container Trip Entitlement Item",
+			filters={
+				"parent": trip_log,
+				"parenttype": "Container Trip Log",
+				"parentfield": "entitlement_items",
+				"trip_settlement_batch": ["!=", ""],
+			},
+			pluck="trip_settlement_batch",
+		)
+	)
+
+	parent_batch = frappe.db.get_value("Container Trip Log", trip_log, "trip_settlement_batch")
+	if parent_batch:
+		batch_names.add(parent_batch)
+
+	batch_names.update(
+		frappe.get_all(
+			"Trip Settlement Batch Item",
+			filters={"container_trip_log": trip_log},
+			pluck="parent",
+		)
+	)
+
+	if not batch_names:
+		return []
+
+	return frappe.get_all(
+		"Trip Settlement Batch",
+		filters={"name": ["in", sorted(batch_names)], "docstatus": 1},
+		fields=["name", "settlement_type", "status", "target_doctype", "target_document"],
+		order_by="modified desc",
+	)
+
+
+@frappe.whitelist()
+def unreconcile_linked_batches(trip_log):
+	frappe.get_doc("Container Trip Log", trip_log).check_permission("cancel")
+	batches = get_linked_settlement_batches(trip_log)
+	results = []
+
+	for batch in batches:
+		doc = frappe.get_doc("Trip Settlement Batch", batch.name)
+		doc.check_permission("cancel")
+		result = doc.unreconcile()
+		results.append(
+			{
+				"name": batch.name,
+				"released_rows": result.get("released_rows", 0),
+			}
+		)
+
+	return results
 
 
 def get_project_settlement_item(project, settlement_type):

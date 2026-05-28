@@ -65,10 +65,6 @@ function is_spare_parts_item(frm) {
 	return ((frm.doc.item_group || "").trim().toLowerCase() === "spare parts");
 }
 
-function is_universal_item(frm) {
-	return cint(frm.doc.is_universal || 0) === 1;
-}
-
 function toggle_make_field_state(frm) {
 	if (!frm.fields_dict || !frm.fields_dict.make) {
 		return;
@@ -76,9 +72,7 @@ function toggle_make_field_state(frm) {
 
 	const isSpareParts = is_spare_parts_item(frm);
 	frm.toggle_display("make", isSpareParts);
-
-	const required = is_spare_parts_item(frm) && !is_universal_item(frm);
-	frm.toggle_reqd("make", required);
+	frm.toggle_reqd("make", false);
 }
 
 function set_warranty_field_read_only(frm) {

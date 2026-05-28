@@ -13,8 +13,9 @@ frappe.ui.form.on("Trip Settlement Batch", {
 			frm.add_custom_button(__("Get Entitlements"), () => get_entitlements(frm));
 		}
 
-		if (frm.doc.docstatus === 1 && !frm.doc.target_document) {
+		if (frm.doc.docstatus === 1 && !frm.doc.target_document && frm.doc.status !== "Unreconciled") {
 			frm.add_custom_button(__("Create ERPNext Document"), () => create_erpnext_document(frm), __("Actions"));
+			frm.add_custom_button(__("Unreconcile"), () => unreconcile_batch(frm), __("Actions"));
 		}
 
 		if (frm.doc.target_doctype && frm.doc.target_document) {
@@ -23,6 +24,14 @@ frappe.ui.form.on("Trip Settlement Batch", {
 				() => frappe.set_route("Form", frm.doc.target_doctype, frm.doc.target_document),
 				__("Actions")
 			);
+
+			if (frm.doc.docstatus === 1) {
+				frm.add_custom_button(
+					__("Unlink ERPNext Document"),
+					() => unlink_target_document(frm),
+					__("Actions")
+				);
+			}
 		}
 	},
 
@@ -123,6 +132,61 @@ function view_summary(frm) {
 		project: frm.doc.project,
 		vehicle: frm.doc.vehicle || undefined,
 	});
+}
+
+function unreconcile_batch(frm) {
+	frappe.confirm(
+		__(
+			"Unreconcile this Trip Settlement Batch? This will release the linked trip entitlement rows so the batch and trip logs can be cancelled."
+		),
+		() => {
+			frappe.call({
+				method: "service_app.service_tracking.doctype.trip_settlement_batch.trip_settlement_batch.unreconcile_batch",
+				args: {
+					source_name: frm.doc.name,
+				},
+				freeze: true,
+				freeze_message: __("Unreconciling Trip Settlement Batch..."),
+				callback(response) {
+					const result = response.message || {};
+					frappe.show_alert({
+						message: __("{0} entitlement rows released.", [result.released_rows || 0]),
+						indicator: "green",
+					});
+					frm.reload_doc();
+				},
+			});
+		}
+	);
+}
+
+function unlink_target_document(frm) {
+	frappe.confirm(
+		__(
+			"Unlink {0} {1} from this Trip Settlement Batch? This will let you cancel the ERPNext document first, then unreconcile the batch.",
+			[frm.doc.target_doctype, frm.doc.target_document]
+		),
+		() => {
+			frappe.call({
+				method: "service_app.service_tracking.doctype.trip_settlement_batch.trip_settlement_batch.unlink_target_document",
+				args: {
+					source_name: frm.doc.name,
+				},
+				freeze: true,
+				freeze_message: __("Unlinking ERPNext document..."),
+				callback(response) {
+					const result = response.message || {};
+					frappe.show_alert({
+						message: __("{0} entitlement rows moved back to Batched.", [
+							result.relinked_rows || 0,
+						]),
+						indicator: "green",
+					});
+					frm.reload_doc();
+				},
+			});
+		}
+	);
 }
 
 function create_erpnext_document(frm) {
