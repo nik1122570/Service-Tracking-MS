@@ -271,9 +271,17 @@ doc_events = {
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
-# override_doctype_dashboards = {
-# 	"Task": "service_app.task.get_dashboard_data"
-# }
+override_doctype_dashboards = {
+	"Material Request": [
+		"service_app.service_tracking.trip_settlement_dashboards.material_request_dashboard"
+	],
+	"Purchase Order": [
+		"service_app.service_tracking.trip_settlement_dashboards.purchase_order_dashboard"
+	],
+	"Sales Order": [
+		"service_app.service_tracking.trip_settlement_dashboards.sales_order_dashboard"
+	],
+}
 
 # exempt linked doctypes from being automatically cancelled
 #

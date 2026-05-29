@@ -109,6 +109,7 @@ class TripSettlementBatch(Document):
 			"doctype": self.target_doctype,
 			"name": self.target_document,
 		}
+		clear_target_document_batch_reference(self.target_doctype, self.target_document, self.name)
 		relinked_rows = 0
 
 		for row in self.get("items") or []:
@@ -1039,4 +1040,23 @@ def set_compatible_field(doc, fieldnames, value):
 	for fieldname in fieldnames:
 		if doc.meta.get_field(fieldname):
 			doc.set(fieldname, value)
+
+
+def clear_target_document_batch_reference(target_doctype, target_document, batch_name):
+	if not (target_doctype and target_document and frappe.db.exists(target_doctype, target_document)):
+		return
+
+	meta = frappe.get_meta(target_doctype)
+	for fieldname in ("custom_trip_settlement_batch", "trip_settlement_batch"):
+		if not meta.has_field(fieldname):
+			continue
+
+		if frappe.db.get_value(target_doctype, target_document, fieldname) == batch_name:
+			frappe.db.set_value(
+				target_doctype,
+				target_document,
+				fieldname,
+				None,
+				update_modified=False,
+			)
 
