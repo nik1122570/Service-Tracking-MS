@@ -17,6 +17,7 @@ frappe.ui.form.on("EAH Job Card", {
 			frm.add_custom_button("Price Insight", () => {
 				show_price_history_insight(frm);
 			}, "View");
+			show_price_fluctuation_banner(frm);
 		}
 
 		if (!frm.doc.vehicle) {
@@ -397,6 +398,89 @@ function show_price_history_insight(frm) {
 			dialog.show();
 		}
 	});
+}
+
+function show_price_fluctuation_banner(frm) {
+	if (frm.__price_fluctuation_request === frm.doc.modified) {
+		bind_price_insight_banner_button(frm);
+		return;
+	}
+
+	frm.__price_fluctuation_request = frm.doc.modified;
+	frm.dashboard.clear_headline();
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.eah_job_card.eah_job_card.get_price_history_insight",
+		args: {
+			job_card: frm.doc.name
+		},
+		callback: (r) => {
+			const insight = r.message || {};
+			const summary = insight.summary || {};
+			const message = get_price_fluctuation_banner_message(summary);
+
+			if (!message) {
+				frm.dashboard.clear_headline();
+				return;
+			}
+
+			frm.dashboard.set_headline_alert(message.html, message.indicator);
+			bind_price_insight_banner_button(frm);
+		}
+	});
+}
+
+function bind_price_insight_banner_button(frm) {
+	if (!frm.layout || !frm.layout.message) {
+		return;
+	}
+
+	frm.layout.message
+		.find(".eah-open-price-insight")
+		.off("click.eah_price_insight")
+		.on("click.eah_price_insight", (event) => {
+			event.preventDefault();
+			show_price_history_insight(frm);
+		});
+}
+
+function get_price_fluctuation_banner_message(summary) {
+	const high_risk = cint(summary.high_risk);
+	const review = cint(summary.review);
+	const no_history = cint(summary.no_history);
+
+	if (high_risk) {
+		return {
+			indicator: "red",
+			html:
+				`<strong>${__("Price Fluctuation Detected")}</strong>: ` +
+				`${high_risk} ${__("high-risk item(s)")} ` +
+				(review ? `${__("and")} ${review} ${__("review item(s)")} ` : "") +
+				`<button class="btn btn-xs btn-danger eah-open-price-insight" style="margin-left: 8px;">${__("Open Price Insight")}</button>`
+		};
+	}
+
+	if (review) {
+		return {
+			indicator: "orange",
+			html:
+				`<strong>${__("Price Review Required")}</strong>: ` +
+				`${review} ${__("item(s) increased by 20% or more.")} ` +
+				`<button class="btn btn-xs btn-warning eah-open-price-insight" style="margin-left: 8px;">${__("Open Price Insight")}</button>`
+		};
+	}
+
+	if (no_history) {
+		return {
+			indicator: "blue",
+			html:
+				`<strong>${__("No Price History")}</strong>: ` +
+				`${no_history} ${__("item(s) have no submitted purchase history in the last 90 days.")} ` +
+				`<button class="btn btn-xs btn-default eah-open-price-insight" style="margin-left: 8px;">${__("Open Price Insight")}</button>`
+		};
+	}
+
+	return null;
 }
 
 function build_price_history_html(insight) {
