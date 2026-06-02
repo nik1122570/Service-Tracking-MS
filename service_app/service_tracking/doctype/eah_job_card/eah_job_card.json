@@ -96,8 +96,7 @@
    "fieldname": "driver_name",
    "fieldtype": "Link",
    "label": "Driver Name",
-   "link_filters": "[[\"Employee\",\"custom_is_driver\",\"=\",1]]",
-   "options": "Employee",
+   "options": "Drivers",
    "reqd": 1
   },
   {
@@ -189,7 +188,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-21 21:13:18.226962",
+ "modified": "2026-06-02 23:49:15.311008",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "EAH Job Card",

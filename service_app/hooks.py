@@ -204,13 +204,7 @@ after_migrate = [
 # Hook on document methods and events
 
 doc_events = {
-	"Item": {
-		"validate": "service_app.service_tracking.item.validate_spare_part_part_category"
-	},
 	"Vehicle": {
-		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
-	},
-	"Item Price": {
 		"validate": "service_app.service_tracking.vehicle_make_controls.validate_doc_make_enabled"
 	},
 	"Service Tempelate": {
@@ -228,7 +222,8 @@ doc_events = {
 		"validate": "service_app.service_tracking.purchase_order.validate_purchase_order_source_integrity",
 		"after_insert": "service_app.service_tracking.purchase_order.sync_job_card_purchase_order_link",
 		"on_submit": "service_app.service_tracking.purchase_order.sync_job_card_purchase_order_link",
-		"on_cancel": "service_app.service_tracking.purchase_order.clear_job_card_purchase_order_link"
+		"on_cancel": "service_app.service_tracking.purchase_order.clear_job_card_purchase_order_link",
+		"on_trash": "service_app.service_tracking.purchase_order.clear_job_card_purchase_order_link"
 	},
 	"Sales Order": {
 		"validate": "service_app.service_tracking.sales_order.validate_sales_order_trip_revenue_allocations"

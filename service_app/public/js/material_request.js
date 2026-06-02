@@ -1,8 +1,47 @@
 frappe.ui.form.on("Material Request", {
+	setup(frm) {
+		set_material_request_item_query(frm);
+	},
+
+	onload(frm) {
+		set_material_request_item_query(frm);
+	},
+
 	refresh(frm) {
+		set_material_request_item_query(frm);
 		add_trip_settlement_target_buttons(frm);
 	},
+
+	material_request_type(frm) {
+		set_material_request_item_query(frm);
+	},
 });
+
+function set_material_request_item_query(frm) {
+	if (!frm || !frm.fields_dict || !frm.fields_dict.items) {
+		return;
+	}
+
+	frm.set_query("item_code", "items", () => {
+		let filters = { is_stock_item: 1 };
+
+		if (frm.doc.material_request_type === "Customer Provided") {
+			filters = { customer: frm.doc.customer };
+		} else if (
+			frm.doc.material_request_type === "Purchase" ||
+			frm.doc.material_request_type === "Subcontracting"
+		) {
+			filters = { is_purchase_item: 1 };
+		} else if (frm.doc.material_request_type === "Manufacture") {
+			filters = { include_item_in_manufacturing: 1 };
+		}
+
+		return {
+			query: "erpnext.controllers.queries.item_query",
+			filters,
+		};
+	});
+}
 
 function add_trip_settlement_target_buttons(frm) {
 	if (frm.doc.docstatus !== 1) {

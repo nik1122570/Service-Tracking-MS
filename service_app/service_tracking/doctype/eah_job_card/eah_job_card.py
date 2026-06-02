@@ -432,14 +432,6 @@ def make_purchase_order(source_name, target_doc=None):
             "Please use the existing Purchase Order to avoid duplicate purchases."
         )
 
-    def set_job_card_item_reference(source, target):
-        item_meta = frappe.get_meta("Purchase Order Item")
-        if not item_meta.get_field("job_card_item"):
-            return
-
-        for row in target.items or []:
-            row.job_card_item = source.name
-
     def append_labour_charge_item(source, target):
         service_charges = get_job_card_labour_charge_total(source, update_row_totals=False)
         if service_charges <= 0:
@@ -500,16 +492,20 @@ def make_purchase_order(source_name, target_doc=None):
         )
 
     def set_missing_values(source, target):
+        cost_center = getattr(source, "cost_center", None) or getattr(source, "custom_cost_center", None)
+
         target.supplier = source.supplier
         # Link PO -> Job Card across all known compatibility fields.
         for fieldname in ("eah_job_card", "job_card_link", "custom_job_card_link"):
             if hasattr(target, fieldname):
                 setattr(target, fieldname, source.name)
-        target.cost_center = getattr(source, "custom_cost_center", None)
+        set_if_field_exists(target, "project", getattr(source, "project", None))
+        set_if_field_exists(target, "cost_center", cost_center)
+        set_if_field_exists(target, "custom_vehicle", getattr(source, "vehicle", None))
         if hasattr(target, "ignore_pricing_rule"):
             target.ignore_pricing_rule = 1
         append_labour_charge_item(source, target)
-        set_job_card_item_reference(source, target)
+        set_purchase_order_item_accounting_values(source, target)
 
     doc = get_mapped_doc(
         "EAH Job Card",
@@ -534,6 +530,26 @@ def make_purchase_order(source_name, target_doc=None):
     )
 
     return doc
+
+
+def set_if_field_exists(doc, fieldname, value):
+    if doc.meta.get_field(fieldname):
+        doc.set(fieldname, value)
+
+
+def set_purchase_order_item_accounting_values(source, target):
+    item_meta = frappe.get_meta("Purchase Order Item")
+    cost_center = getattr(source, "cost_center", None) or getattr(source, "custom_cost_center", None)
+    row_values = {
+        "project": getattr(source, "project", None),
+        "cost_center": cost_center,
+        "custom_vehicle": getattr(source, "vehicle", None),
+    }
+
+    for row in target.get("items") or []:
+        for fieldname, value in row_values.items():
+            if item_meta.get_field(fieldname):
+                row.set(fieldname, value)
 
 
 def _normalize_purchase_order_integrity_row(item_code, qty, rate, uom=None):
@@ -877,23 +893,24 @@ def get_item_price_rate(item_code, price_list, supplier=None):
     if not item_code or not price_list:
         return None
 
-    filters = {
-        "item_code": item_code,
-        "price_list": price_list
-    }
+    price = frappe.db.get_value(
+        "Item Price",
+        {
+            "item_code": item_code,
+            "price_list": price_list
+        },
+        "price_list_rate"
+    )
 
-    if supplier:
-        filters["supplier"] = supplier
-
-    price = frappe.db.get_value("Item Price", filters, "price_list_rate")
-
-    # If no supplier price found, fallback to the generic price list entry.
+    # Supplier-specific prices are now only a fallback. The general Item Price
+    # for the selected Price List remains the primary approved rate.
     if price is None and supplier:
         price = frappe.db.get_value(
             "Item Price",
             {
                 "item_code": item_code,
-                "price_list": price_list
+                "price_list": price_list,
+                "supplier": supplier
             },
             "price_list_rate"
         )
@@ -905,6 +922,155 @@ def get_item_price_rate(item_code, price_list, supplier=None):
 def get_item_price(item_code, price_list, supplier=None):
     price = get_item_price_rate(item_code, price_list, supplier)
     return {"rate": price or 0}
+
+
+@frappe.whitelist()
+def get_price_history_insight(job_card):
+    if not job_card:
+        frappe.throw("EAH Job Card is required.")
+
+    doc = frappe.get_doc("EAH Job Card", job_card)
+    doc.check_permission("read")
+
+    rows = []
+    summary = {
+        "total": 0,
+        "normal": 0,
+        "review": 0,
+        "high_risk": 0,
+        "no_history": 0,
+    }
+
+    for index, part in enumerate(doc.supplied_parts or [], start=1):
+        if not part.item:
+            continue
+
+        insight = get_item_purchase_price_insight(doc, part, index)
+        rows.append(insight)
+        summary["total"] += 1
+        summary[insight["status"]] += 1
+
+    return {
+        "job_card": doc.name,
+        "supplier": doc.supplier,
+        "price_list": doc.price_list,
+        "currency": frappe.db.get_value("Price List", doc.price_list, "currency") if doc.price_list else None,
+        "summary": summary,
+        "rows": rows,
+    }
+
+
+def get_item_purchase_price_insight(job_card, part, index):
+    current_rate = flt(part.rate)
+    history = get_purchase_order_price_history(
+        item_code=part.item,
+        job_card_name=job_card.name,
+        days=90,
+    )
+    last_purchase = history[0] if history else None
+    recent_rates = [flt(row.rate) for row in history if flt(row.rate) > 0]
+    lowest_90_days = min(recent_rates) if recent_rates else None
+    highest_90_days = max(recent_rates) if recent_rates else None
+    last_rate = flt(last_purchase.rate) if last_purchase else None
+    change_percent = get_price_change_percent(current_rate, last_rate)
+    status, status_label = get_price_history_status(
+        current_rate=current_rate,
+        last_rate=last_rate,
+        lowest_90_days=lowest_90_days,
+        has_history=bool(history),
+    )
+
+    return {
+        "row": index,
+        "item": part.item,
+        "item_name": part.item_name or frappe.db.get_value("Item", part.item, "item_name") or part.item,
+        "qty": flt(part.qty),
+        "current_rate": current_rate,
+        "last_purchase_rate": last_rate,
+        "change_percent": change_percent,
+        "lowest_90_days": lowest_90_days,
+        "highest_90_days": highest_90_days,
+        "last_supplier": last_purchase.supplier if last_purchase else None,
+        "last_purchase_order": last_purchase.purchase_order if last_purchase else None,
+        "last_purchase_date": last_purchase.transaction_date if last_purchase else None,
+        "status": status,
+        "status_label": status_label,
+    }
+
+
+def get_purchase_order_price_history(item_code, job_card_name=None, days=90):
+    if not item_code:
+        return []
+
+    cutoff_date = add_days(today(), -1 * cint(days or 90))
+    exclude_conditions = []
+    values = {
+        "item_code": item_code,
+        "cutoff_date": cutoff_date,
+    }
+
+    for fieldname in ("eah_job_card", "job_card_link", "custom_job_card_link"):
+        if frappe.db.has_column("Purchase Order", fieldname) and job_card_name:
+            exclude_conditions.append(
+                f"(po.`{fieldname}` IS NULL OR po.`{fieldname}` = '' OR po.`{fieldname}` != %(job_card_name)s)"
+            )
+
+    values["job_card_name"] = job_card_name or ""
+    exclude_sql = " AND ".join(exclude_conditions)
+    if exclude_sql:
+        exclude_sql = " AND " + exclude_sql
+
+    return frappe.db.sql(
+        f"""
+        SELECT
+            po.name AS purchase_order,
+            po.transaction_date,
+            po.supplier,
+            po.currency,
+            poi.rate,
+            poi.qty,
+            poi.amount
+        FROM `tabPurchase Order Item` poi
+        INNER JOIN `tabPurchase Order` po ON po.name = poi.parent
+        WHERE
+            poi.item_code = %(item_code)s
+            AND po.docstatus = 1
+            AND po.transaction_date >= %(cutoff_date)s
+            {exclude_sql}
+        ORDER BY po.transaction_date DESC, po.creation DESC, poi.idx DESC
+        LIMIT 20
+        """,
+        values,
+        as_dict=True,
+    )
+
+
+def get_price_change_percent(current_rate, previous_rate):
+    current_rate = flt(current_rate)
+    previous_rate = flt(previous_rate)
+    if previous_rate <= 0:
+        return None
+
+    return ((current_rate - previous_rate) / previous_rate) * 100
+
+
+def get_price_history_status(current_rate, last_rate, lowest_90_days, has_history):
+    if not has_history:
+        return "no_history", "No History"
+
+    change_percent = get_price_change_percent(current_rate, last_rate)
+    increase_from_lowest = get_price_change_percent(current_rate, lowest_90_days)
+    max_increase = max(
+        [flt(value) for value in (change_percent, increase_from_lowest) if value is not None] or [0]
+    )
+
+    if max_increase >= 50:
+        return "high_risk", "High Risk"
+
+    if max_increase >= 20:
+        return "review", "Review"
+
+    return "normal", "Normal"
 
 
 def get_job_card_labour_charge_total(job_card, update_row_totals=False):

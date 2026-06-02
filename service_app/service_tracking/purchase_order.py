@@ -2,9 +2,9 @@ import frappe
 from frappe.utils import flt
 
 from service_app.service_tracking.doctype.eah_job_card.eah_job_card import (
+    get_active_purchase_orders_for_job_card,
     get_item_price_rate,
     get_purchase_order_job_card_link,
-    validate_purchase_order_job_card_integrity,
 )
 from service_app.service_tracking.doctype.tyre_request.tyre_request import (
     validate_purchase_order_tyre_request_integrity,
@@ -14,9 +14,30 @@ SPARE_PARTS_ITEM_GROUP = "Spare Parts"
 
 
 def validate_purchase_order_source_integrity(doc, method=None):
+    validate_duplicate_eah_job_card_purchase_order(doc)
     validate_purchase_order_spare_parts_rate_limit(doc, method)
-    validate_purchase_order_job_card_integrity(doc, method)
     validate_purchase_order_tyre_request_integrity(doc, method)
+
+
+def validate_duplicate_eah_job_card_purchase_order(doc):
+    job_card_link = get_purchase_order_job_card_link(doc)
+    if not job_card_link:
+        return
+
+    existing_purchase_orders = [
+        purchase_order
+        for purchase_order in get_active_purchase_orders_for_job_card(job_card_link)
+        if purchase_order != doc.name
+    ]
+    if not existing_purchase_orders:
+        return
+
+    frappe.throw(
+        "Purchase Order already exists for EAH Job Card "
+        f"{frappe.bold(job_card_link)}: {', '.join(existing_purchase_orders)}. "
+        "Please use the existing Purchase Order to avoid duplicate payments.",
+        title="Duplicate EAH Job Card Purchase Order",
+    )
 
 
 def sync_job_card_purchase_order_link(doc, method=None):
@@ -39,26 +60,53 @@ def sync_job_card_purchase_order_link(doc, method=None):
 
 
 def clear_job_card_purchase_order_link(doc, method=None):
-    job_card_link = get_purchase_order_job_card_link(doc)
-    if not job_card_link:
-        return
+    doc = get_purchase_order_doc(doc)
 
-    if not frappe.db.exists("EAH Job Card", job_card_link):
-        return
+    for job_card_link in get_job_cards_linked_to_purchase_order(doc):
+        if not frappe.db.exists("EAH Job Card", job_card_link):
+            continue
+
+        for fieldname in ("purchase_order", "custom_purchase_order"):
+            if not frappe.db.has_column("EAH Job Card", fieldname):
+                continue
+
+            linked_purchase_order = frappe.db.get_value("EAH Job Card", job_card_link, fieldname)
+            if linked_purchase_order == doc.name:
+                frappe.db.set_value(
+                    "EAH Job Card",
+                    job_card_link,
+                    fieldname,
+                    None,
+                    update_modified=False,
+                )
+
+
+def get_purchase_order_doc(doc):
+    if isinstance(doc, str):
+        return frappe.get_doc("Purchase Order", doc)
+    return doc
+
+
+def get_job_cards_linked_to_purchase_order(doc):
+    job_cards = set()
+    job_card_link = get_purchase_order_job_card_link(doc)
+    if job_card_link:
+        job_cards.add(job_card_link)
 
     for fieldname in ("purchase_order", "custom_purchase_order"):
         if not frappe.db.has_column("EAH Job Card", fieldname):
             continue
 
-        linked_purchase_order = frappe.db.get_value("EAH Job Card", job_card_link, fieldname)
-        if linked_purchase_order == doc.name:
-            frappe.db.set_value(
+        job_cards.update(
+            frappe.get_all(
                 "EAH Job Card",
-                job_card_link,
-                fieldname,
-                None,
-                update_modified=False,
+                filters={fieldname: doc.name},
+                pluck="name",
             )
+            or []
+        )
+
+    return sorted(job_cards)
 
 
 def validate_purchase_order_spare_parts_rate_limit(doc, method=None):

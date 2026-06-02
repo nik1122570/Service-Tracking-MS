@@ -1,15 +1,27 @@
 frappe.ui.form.on("Purchase Order", {
 	setup(frm) {
+		set_purchase_order_item_query(frm);
 		fetch_spare_part_rates(frm, { force: false });
 	},
 
+	onload(frm) {
+		set_purchase_order_item_query(frm);
+	},
+
 	onload_post_render(frm) {
+		set_purchase_order_item_query(frm);
 		fetch_spare_part_rates(frm, { force: false });
 	},
 
 	refresh(frm) {
+		set_purchase_order_item_query(frm);
+		clear_eah_job_card_values_from_standard_job_card_item(frm);
 		fetch_spare_part_rates(frm, { force: false });
 		add_trip_settlement_target_buttons(frm);
+	},
+
+	validate(frm) {
+		clear_eah_job_card_values_from_standard_job_card_item(frm);
 	},
 
 	buying_price_list(frm) {
@@ -24,6 +36,51 @@ frappe.ui.form.on("Purchase Order", {
 		fetch_spare_part_rates(frm, { force: true });
 	}
 });
+
+function set_purchase_order_item_query(frm) {
+	if (!frm || !frm.fields_dict || !frm.fields_dict.items) {
+		return;
+	}
+
+	frm.set_query("item_code", "items", () => {
+		const filters = {
+			supplier: frm.doc.supplier,
+			has_variants: 0,
+		};
+
+		if (frm.doc.is_subcontracted) {
+			if (frm.doc.is_old_subcontracting_flow) {
+				filters.is_sub_contracted_item = 1;
+			} else {
+				filters.is_stock_item = 0;
+			}
+		} else {
+			filters.is_purchase_item = 1;
+		}
+
+		return {
+			query: "erpnext.controllers.queries.item_query",
+			filters,
+		};
+	});
+}
+
+function clear_eah_job_card_values_from_standard_job_card_item(frm) {
+	let changed = false;
+
+	(frm.doc.items || []).forEach((row) => {
+		if (!row.job_card_item || !String(row.job_card_item).startsWith("JOB CARD-")) {
+			return;
+		}
+
+		frappe.model.set_value(row.doctype, row.name, "job_card_item", "");
+		changed = true;
+	});
+
+	if (changed) {
+		frm.refresh_field("items");
+	}
+}
 
 frappe.ui.form.on("Purchase Order Item", {
 	item_code(frm, cdt, cdn) {

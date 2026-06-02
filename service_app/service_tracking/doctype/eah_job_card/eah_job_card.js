@@ -13,6 +13,12 @@ frappe.ui.form.on("EAH Job Card", {
 		});
 		calculate_totals(frm);
 
+		if (!frm.is_new()) {
+			frm.add_custom_button("Price Insight", () => {
+				show_price_history_insight(frm);
+			}, "View");
+		}
+
 		if (!frm.doc.vehicle) {
 			return;
 		}
@@ -362,4 +368,237 @@ function validate_rate_limit(frm, cdt, cdn) {
 			}
 		}
 	});
+}
+
+function show_price_history_insight(frm) {
+	frappe.call({
+		method: "service_app.service_tracking.doctype.eah_job_card.eah_job_card.get_price_history_insight",
+		args: {
+			job_card: frm.doc.name
+		},
+		freeze: true,
+		freeze_message: __("Checking purchase price history..."),
+		callback: (r) => {
+			const insight = r.message || {};
+			const dialog = new frappe.ui.Dialog({
+				title: __("Price Insight for {0}", [frm.doc.name]),
+				size: "extra-large",
+				fields: [
+					{
+						fieldtype: "HTML",
+						fieldname: "price_insight_html"
+					}
+				],
+				primary_action_label: __("Close"),
+				primary_action: () => dialog.hide()
+			});
+
+			dialog.set_value("price_insight_html", build_price_history_html(insight));
+			dialog.show();
+		}
+	});
+}
+
+function build_price_history_html(insight) {
+	const summary = insight.summary || {};
+	const rows = insight.rows || [];
+	const currency = insight.currency || "TZS";
+
+	if (!rows.length) {
+		return `<p class="text-muted">${__("No supplied parts found for price insight.")}</p>`;
+	}
+
+	const summary_html = `
+		<div class="eah-price-summary">
+			${build_price_summary_card(__("Items Checked"), summary.total || 0, "neutral")}
+			${build_price_summary_card(__("Normal"), summary.normal || 0, "normal")}
+			${build_price_summary_card(__("Review"), summary.review || 0, "review")}
+			${build_price_summary_card(__("High Risk"), summary.high_risk || 0, "high-risk")}
+			${build_price_summary_card(__("No History"), summary.no_history || 0, "no-history")}
+		</div>
+	`;
+
+	const table_rows = rows.map((row) => {
+		const status_class = `status-${row.status || "normal"}`;
+		const change = format_percent(row.change_percent);
+		const last_po = row.last_purchase_order
+			? `<a href="/app/purchase-order/${encodeURIComponent(row.last_purchase_order)}">${escape_html(row.last_purchase_order)}</a>`
+			: "-";
+
+		return `
+			<tr>
+				<td>
+					<div><strong>${escape_html(row.item_name || row.item || "")}</strong></div>
+					<div class="text-muted small">${escape_html(row.item || "")}</div>
+				</td>
+				<td class="text-right">${format_number(row.qty)}</td>
+				<td class="text-right">${format_currency(row.current_rate, currency)}</td>
+				<td class="text-right">${format_currency(row.last_purchase_rate, currency)}</td>
+				<td class="text-right ${get_change_class(row.change_percent)}">${change}</td>
+				<td class="text-right">${format_currency(row.lowest_90_days, currency)}</td>
+				<td class="text-right">${format_currency(row.highest_90_days, currency)}</td>
+				<td>${escape_html(row.last_supplier || "-")}</td>
+				<td>${last_po}</td>
+				<td>${escape_html(row.last_purchase_date || "-")}</td>
+				<td><span class="eah-price-status ${status_class}">${escape_html(row.status_label || "")}</span></td>
+			</tr>
+		`;
+	}).join("");
+
+	return `
+		<style>
+			.eah-price-summary {
+				display: grid;
+				grid-template-columns: repeat(5, minmax(110px, 1fr));
+				gap: 8px;
+				margin-bottom: 14px;
+			}
+			.eah-price-card {
+				border: 1px solid var(--border-color);
+				border-radius: 8px;
+				padding: 10px;
+				background: var(--fg-color);
+			}
+			.eah-price-card .label {
+				color: var(--text-muted);
+				font-size: 12px;
+			}
+			.eah-price-card .value {
+				font-size: 20px;
+				font-weight: 700;
+				line-height: 1.2;
+			}
+			.eah-price-card.normal .value { color: #1f8f4d; }
+			.eah-price-card.review .value { color: #b7791f; }
+			.eah-price-card.high-risk .value { color: #c53030; }
+			.eah-price-card.no-history .value { color: #5a67d8; }
+			.eah-price-table-wrap {
+				max-height: 430px;
+				overflow: auto;
+				border: 1px solid var(--border-color);
+				border-radius: 8px;
+			}
+			.eah-price-table {
+				margin: 0;
+				white-space: nowrap;
+			}
+			.eah-price-table thead th {
+				position: sticky;
+				top: 0;
+				background: var(--fg-color);
+				z-index: 1;
+			}
+			.eah-price-status {
+				border-radius: 999px;
+				padding: 3px 8px;
+				font-size: 12px;
+				font-weight: 600;
+			}
+			.eah-price-status.status-normal {
+				background: #e6f4ea;
+				color: #1f8f4d;
+			}
+			.eah-price-status.status-review {
+				background: #fff4de;
+				color: #9a5b00;
+			}
+			.eah-price-status.status-high_risk {
+				background: #fde8e8;
+				color: #b42318;
+			}
+			.eah-price-status.status-no_history {
+				background: #eef2ff;
+				color: #4c51bf;
+			}
+			.eah-price-positive { color: #c53030; font-weight: 600; }
+			.eah-price-negative { color: #1f8f4d; font-weight: 600; }
+		</style>
+		<div>
+			<div class="text-muted" style="margin-bottom: 10px;">
+				${__("Supplier")}: <strong>${escape_html(insight.supplier || "-")}</strong>
+				&nbsp; | &nbsp;
+				${__("Price List")}: <strong>${escape_html(insight.price_list || "-")}</strong>
+			</div>
+			${summary_html}
+			<div class="eah-price-table-wrap">
+				<table class="table table-bordered eah-price-table">
+					<thead>
+						<tr>
+							<th>${__("Item")}</th>
+							<th class="text-right">${__("Qty")}</th>
+							<th class="text-right">${__("Current Rate")}</th>
+							<th class="text-right">${__("Last PO Rate")}</th>
+							<th class="text-right">${__("Change")}</th>
+							<th class="text-right">${__("Lowest 90 Days")}</th>
+							<th class="text-right">${__("Highest 90 Days")}</th>
+							<th>${__("Last Supplier")}</th>
+							<th>${__("Last PO")}</th>
+							<th>${__("Last Date")}</th>
+							<th>${__("Status")}</th>
+						</tr>
+					</thead>
+					<tbody>${table_rows}</tbody>
+				</table>
+			</div>
+		</div>
+	`;
+}
+
+function build_price_summary_card(label, value, status) {
+	return `
+		<div class="eah-price-card ${status}">
+			<div class="label">${escape_html(label)}</div>
+			<div class="value">${cint(value)}</div>
+		</div>
+	`;
+}
+
+function format_currency(value, currency) {
+	if (value === null || value === undefined || value === "") {
+		return "-";
+	}
+
+	return frappe.format(flt(value), {
+		fieldtype: "Currency",
+		options: currency
+	});
+}
+
+function format_number(value) {
+	if (value === null || value === undefined || value === "") {
+		return "-";
+	}
+
+	return format_number_with_precision(flt(value), 3);
+}
+
+function format_number_with_precision(value, precision) {
+	return frappe.format(value, {
+		fieldtype: "Float",
+		precision
+	});
+}
+
+function format_percent(value) {
+	if (value === null || value === undefined) {
+		return "-";
+	}
+
+	const formatted = frappe.format(flt(value), {
+		fieldtype: "Percent",
+		precision: 1
+	});
+	return flt(value) > 0 ? `+${formatted}` : formatted;
+}
+
+function get_change_class(value) {
+	if (value === null || value === undefined) {
+		return "";
+	}
+
+	return flt(value) > 0 ? "eah-price-positive" : "eah-price-negative";
+}
+
+function escape_html(value) {
+	return frappe.utils.escape_html(String(value || ""));
 }
