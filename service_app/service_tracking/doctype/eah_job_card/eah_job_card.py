@@ -751,27 +751,9 @@ def _get_first_available_doctype_field(doctype, fieldnames):
 
 
 def validate_purchase_order_job_card_integrity(doc, method=None):
-    job_card_link = get_purchase_order_job_card_link(doc)
-    if not job_card_link:
-        return
-
-    job_card = frappe.get_doc("EAH Job Card", job_card_link)
-    expected_rows = get_expected_job_card_purchase_order_rows(job_card)
-    current_rows = _get_purchase_order_integrity_rows(doc)
-    expected_cost_center = (getattr(job_card, "custom_cost_center", None) or "").strip()
-    current_cost_center = (getattr(doc, "cost_center", None) or "").strip()
-    expected_labour_charge = get_job_card_labour_charge_total(job_card, update_row_totals=False)
-
-    if current_rows == expected_rows and current_cost_center == expected_cost_center:
-        return
-
-    frappe.throw(
-        "Please make sure the Labour Charge in this Purchase Order matches the Labour Charge in "
-        f"<b>EAH Job Card {job_card.name}</b> "
-        f"(<b>EAH Labour Charge: {expected_labour_charge:g}</b>). "
-        "If any update is needed, kindly adjust the EAH Job Card and create a new Purchase Order.",
-        title="Job Card Integrity Error",
-    )
+    # Compatibility no-op. Purchase Orders linked to EAH Job Cards are now
+    # validated by focused controls in service_tracking/purchase_order.py.
+    return
 
 
 @frappe.whitelist()

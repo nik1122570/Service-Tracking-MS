@@ -15,8 +15,13 @@ def material_request_dashboard(data):
 def purchase_order_dashboard(data):
 	data = add_trip_settlement_batch_reference(data, "Purchase Order")
 	data = add_eah_job_card_reference(data)
+	data = add_trip_simulation_reference(data)
 	data["method"] = "service_app.service_tracking.trip_settlement_dashboards.get_purchase_order_open_count"
 	return data
+
+
+def quotation_dashboard(data):
+	return add_trip_simulation_reference(data)
 
 
 def add_trip_settlement_batch_reference(data, target_doctype):
@@ -39,6 +44,16 @@ def add_eah_job_card_reference(data):
 	data["non_standard_fieldnames"]["EAH Job Card"] = "purchase_order"
 	data["internal_and_external_links"]["EAH Job Card"] = "eah_job_card"
 	add_transaction_item(data, _("Reference"), "EAH Job Card")
+
+	return data
+
+
+def add_trip_simulation_reference(data):
+	data.setdefault("internal_and_external_links", {})
+	data.setdefault("transactions", [])
+
+	data["internal_and_external_links"]["Trip Simulation"] = "custom_trip_simulation"
+	add_transaction_item(data, _("Reference"), "Trip Simulation")
 
 	return data
 

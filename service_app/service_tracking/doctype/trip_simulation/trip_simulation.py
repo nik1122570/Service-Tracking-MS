@@ -21,6 +21,8 @@ class TripSimulation(Document):
 			self.validate_trip_expenses()
 			self.calculate_totals()
 
+		self.validate_targeted_net_profit()
+
 	def calculate_days_in_trip(self):
 		if not self.departure_date or not self.return_date:
 			self.days_in_trip = 0
@@ -72,6 +74,9 @@ class TripSimulation(Document):
 				)
 
 			expense_limit = route_expense_limits[row.expense]
+			if row.expense == "Tyres":
+				continue
+
 			max_amount = get_allowed_expense_amount(
 				expense_limit,
 				self.days_in_trip,
@@ -79,6 +84,10 @@ class TripSimulation(Document):
 				self.active_vehicles,
 				self.vehicle_costs,
 				self.get_depreciation_month_number(),
+				self.expected_revenue,
+				row.quantity,
+				sum(flt(step.distance) for step in self.fuel),
+				self.vehicle,
 			)
 			if flt(row.amount) > max_amount:
 				frappe.throw(
@@ -101,6 +110,22 @@ class TripSimulation(Document):
 				continue
 
 			expense_limit = route_expense_limits[row.expense]
+			if row.expense == "Tyres":
+				row.rate = get_tyre_cost_per_km(
+					row.tyre_price,
+					row.number_of_tyres,
+					row.tyre_lifecycle_km,
+				)
+				row.quantity = sum(flt(step.distance) for step in self.fuel)
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(row.tyre_price)} x "
+					f"{format_formula_number(row.number_of_tyres)} tyres / "
+					f"{format_formula_number(row.tyre_lifecycle_km)} km x "
+					f"{format_formula_number(row.quantity)} km"
+				)
+				continue
+
 			if expense_limit.get("calculation_method") == "Per Trip Day":
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = self.days_in_trip or 0
@@ -123,6 +148,13 @@ class TripSimulation(Document):
 					f"{format_formula_number(self.vehicle_costs)} / {format_formula_number(month_number)} / 12 / 30 "
 					f"x {format_formula_number(row.quantity)} trip days"
 				)
+			elif expense_limit.get("calculation_method") == "Percentage of Expected Revenue":
+				row.quantity = flt(row.quantity)
+				row.rate = flt(self.expected_revenue) / 100
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(row.quantity)}% of {format_formula_number(self.expected_revenue)}"
+				)
 			else:
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = 1
@@ -140,11 +172,23 @@ class TripSimulation(Document):
 			flt(row.amount) for row in self.trip_expenses_outline
 		)
 		expected_revenue = flt(self.expected_revenue)
-		self.trip_gross_profit_amount = flt(expected_revenue - flt(self.total_trip_cost), 2)
-		if expected_revenue:
-			self.trip_gross_profit = flt(flt(self.trip_gross_profit_amount) / expected_revenue * 100, 4)
-		else:
-			self.trip_gross_profit = 0
+		self.net_profit = flt(expected_revenue - flt(self.total_trip_cost), 2)
+		self.net_profit_ = get_net_profit_margin_percentage(
+			self.net_profit,
+			expected_revenue,
+		)
+
+	def validate_targeted_net_profit(self):
+		if flt(self.net_profit_) >= flt(self.targeted_net_profit):
+			return
+
+		frappe.throw(
+			_("Net Profit Margin {0} cannot be below the Targeted Net Profit {1}.").format(
+				frappe.bold(frappe.format_value(self.net_profit_, {"fieldtype": "Percent"})),
+				frappe.bold(frappe.format_value(self.targeted_net_profit, {"fieldtype": "Percent"})),
+			),
+			title=_("Targeted Net Profit Not Met"),
+		)
 
 	def load_route_details(self):
 		route_details = get_route_details(
@@ -154,6 +198,8 @@ class TripSimulation(Document):
 			self.active_vehicles,
 			self.vehicle_costs,
 			self.get_depreciation_month_number(),
+			self.expected_revenue,
+			self.vehicle,
 		)
 
 		self.set("fuel", [])
@@ -179,6 +225,8 @@ def get_route_details(
 	active_vehicles=0,
 	vehicle_costs=0,
 	depreciation_month_number=0,
+	expected_revenue=0,
+	vehicle=None,
 ):
 	if not route:
 		return {
@@ -212,7 +260,13 @@ def get_route_details(
 		amount = rate
 		description = f"Fetched from route {route_doc.name}"
 
-		if expense_meta.get("calculation_method") == "Per Trip Day":
+		if row.expense == "Tyres":
+			vehicle_wheels = get_vehicle_wheels(vehicle)
+			rate = 0
+			quantity = total_distance
+			amount = 0
+			description = "Set tyre price and lifecycle on the Trip Simulation Tyres row"
+		elif expense_meta.get("calculation_method") == "Per Trip Day":
 			quantity = flt(days_in_trip)
 			amount = rate * quantity
 			description = f"{rate:g} x {quantity:g} trip days"
@@ -232,6 +286,11 @@ def get_route_details(
 				f"{format_formula_number(vehicle_costs)} / {format_formula_number(depreciation_month_number)} / 12 / 30 "
 				f"x {format_formula_number(quantity)} trip days"
 			)
+		elif expense_meta.get("calculation_method") == "Percentage of Expected Revenue":
+			quantity = flt(expense_meta.get("percentage"))
+			rate = flt(expected_revenue) / 100
+			amount = rate * quantity
+			description = f"{format_formula_number(quantity)}% of {format_formula_number(expected_revenue)}"
 
 		fixed_expenses.append(
 			{
@@ -240,6 +299,7 @@ def get_route_details(
 				"rate": rate,
 				"amount": amount,
 				"description": description,
+				"number_of_tyres": vehicle_wheels if row.expense == "Tyres" else 0,
 			}
 		)
 
@@ -270,6 +330,7 @@ def get_route_expense_limits(route):
 			limits[row.expense] = {
 				"amount": flt(row.amount),
 				"calculation_method": expense_meta.get("calculation_method"),
+				"percentage": flt(expense_meta.get("percentage")),
 			}
 
 	return limits
@@ -506,6 +567,76 @@ def create_fuel_purchase_order(trip_simulation):
 
 
 @frappe.whitelist()
+def create_quotation(trip_simulation):
+	if not trip_simulation:
+		frappe.throw(_("Trip Simulation is required."))
+
+	doc = frappe.get_doc("Trip Simulation", trip_simulation)
+	if doc.docstatus != 1:
+		frappe.throw(_("Quotation can only be created from a submitted Trip Simulation."))
+	if doc.quotation:
+		frappe.throw(
+			_("Quotation {0} already exists for this Trip Simulation.").format(
+				frappe.bold(doc.quotation)
+			)
+		)
+	if not flt(doc.expected_revenue):
+		frappe.throw(_("Expected Revenue must be greater than zero before creating a Quotation."))
+
+	project = frappe.get_cached_doc("Project", doc.project)
+	customer = doc.customer
+	if not customer:
+		frappe.throw(_("Please set Customer in Trip Simulation before creating a Quotation."))
+
+	sales_item = project.get("custom_sales_item")
+	if not sales_item:
+		frappe.throw(_("Please set Sales Item on Project {0} before creating a Quotation.").format(
+			frappe.bold(doc.project)
+		))
+
+	quotation = frappe.new_doc("Quotation")
+	quotation.quotation_to = "Customer"
+	quotation.party_name = customer
+	quotation.transaction_date = doc.transaction_date or nowdate()
+	quotation.valid_till = doc.return_date or doc.departure_date or doc.transaction_date or nowdate()
+	quotation.order_type = "Sales"
+	if quotation.meta.has_field("project"):
+		quotation.project = doc.project
+	if quotation.meta.has_field("custom_trip_simulation"):
+		quotation.custom_trip_simulation = doc.name
+
+	item_row = {
+		"item_code": sales_item,
+		"qty": 1,
+		"rate": flt(doc.expected_revenue),
+		"description": _("Trip quotation for {0} via route {1}").format(doc.name, doc.route),
+	}
+	quotation_item_meta = frappe.get_meta("Quotation Item")
+	if quotation_item_meta.has_field("project"):
+		item_row["project"] = doc.project
+	if quotation_item_meta.has_field("cost_center"):
+		item_row["cost_center"] = doc.cost_center
+	if quotation_item_meta.has_field("custom_vehicle"):
+		item_row["custom_vehicle"] = doc.vehicle
+
+	quotation.append("items", item_row)
+	quotation.insert()
+
+	frappe.db.set_value(
+		doc.doctype,
+		doc.name,
+		"quotation",
+		quotation.name,
+		update_modified=False,
+	)
+
+	return {
+		"name": quotation.name,
+		"doctype": quotation.doctype,
+	}
+
+
+@frappe.whitelist()
 def ensure_purchase_order_custom_fields():
 	create_custom_fields(
 		{
@@ -543,7 +674,7 @@ def get_fixed_expense_meta(expense):
 	return frappe.db.get_value(
 		"Fixed Expenses",
 		expense,
-		["calculation_method"],
+		["calculation_method", "percentage"],
 		as_dict=True,
 	) or {}
 
@@ -555,6 +686,10 @@ def get_allowed_expense_amount(
 	active_vehicles=0,
 	vehicle_costs=0,
 	depreciation_month_number=0,
+	expected_revenue=0,
+	percentage_override=None,
+	total_distance_km=0,
+	vehicle=None,
 ):
 	amount = flt(expense_limit.get("amount"))
 	if expense_limit.get("calculation_method") == "Per Trip Day":
@@ -563,7 +698,13 @@ def get_allowed_expense_amount(
 		return get_salary_allocation_rate(salaries, active_vehicles) * flt(days_in_trip)
 	if expense_limit.get("calculation_method") == "Vehicle Depreciation":
 		return get_vehicle_depreciation_rate(vehicle_costs, depreciation_month_number) * flt(days_in_trip)
-
+	if expense_limit.get("calculation_method") == "Percentage of Expected Revenue":
+		percentage = (
+			flt(expense_limit.get("percentage"))
+			if percentage_override is None
+			else flt(percentage_override)
+		)
+		return flt(expected_revenue) * percentage / 100
 	return amount
 
 
@@ -581,6 +722,29 @@ def get_vehicle_depreciation_rate(vehicle_costs, month_number):
 		return 0
 
 	return flt(vehicle_costs) / month_number / 12 / 30
+
+
+def get_vehicle_wheels(vehicle):
+	if not vehicle:
+		return 0
+
+	return flt(frappe.db.get_value("Vehicle", vehicle, "wheels"))
+
+
+def get_tyre_cost_per_km(tyre_price, vehicle_wheels, tyre_lifecycle_km):
+	tyre_lifecycle_km = flt(tyre_lifecycle_km)
+	if not tyre_lifecycle_km:
+		return 0
+
+	return flt(tyre_price) * flt(vehicle_wheels) / tyre_lifecycle_km
+
+
+def get_net_profit_margin_percentage(net_profit, revenue):
+	revenue = flt(revenue)
+	if not revenue:
+		return 0
+
+	return flt(flt(net_profit) / revenue * 100, 4)
 
 
 def get_depreciation_month_number(date_value):

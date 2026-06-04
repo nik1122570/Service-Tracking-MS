@@ -74,14 +74,21 @@ def get_default_fixed_expense_row(expense):
 	defaults = frappe.db.get_value(
 		"Fixed Expenses",
 		expense,
-		["currency", "fixed_value"],
+		["currency", "fixed_value", "calculation_method"],
 		as_dict=True,
 	) or {}
 
 	return {
 		"expense": expense,
 		"currency": defaults.get("currency"),
-		"amount": flt(defaults.get("fixed_value")),
+		"amount": (
+			0
+			if (
+				expense == "Tyres"
+				or defaults.get("calculation_method") == "Percentage of Expected Revenue"
+			)
+			else flt(defaults.get("fixed_value"))
+		),
 	}
 
 

@@ -5,11 +5,18 @@ frappe.ui.form.on("Trip Simulation", {
 	refresh(frm) {
 		calculate_days_in_trip(frm);
 		load_route_expense_limits(frm);
+		load_vehicle_wheels(frm);
 
 		if (frm.doc.docstatus === 1) {
 			frm.add_custom_button(__("Create Purchase Order"), () => {
 				show_payable_expenses_dialog(frm);
 			});
+
+			if (!frm.doc.quotation) {
+				frm.add_custom_button(__("Create Quotation"), () => {
+					make_quotation(frm);
+				});
+			}
 		}
 	},
 
@@ -33,6 +40,8 @@ frappe.ui.form.on("Trip Simulation", {
 				active_vehicles: frm.doc.active_vehicles || 0,
 				vehicle_costs: frm.doc.vehicle_costs || 0,
 				depreciation_month_number: get_depreciation_month_number(frm),
+				expected_revenue: frm.doc.expected_revenue || 0,
+				vehicle: frm.doc.vehicle,
 			},
 			callback(response) {
 				const route_details = response.message || {};
@@ -54,6 +63,7 @@ frappe.ui.form.on("Trip Simulation", {
 					row.rate = expense.rate;
 					row.amount = expense.amount;
 					row.description = expense.description;
+					row.number_of_tyres = expense.number_of_tyres;
 				});
 
 				calculate_totals(frm);
@@ -107,6 +117,10 @@ frappe.ui.form.on("Trip Simulation", {
 		apply_calculated_expenses(frm);
 		calculate_totals(frm);
 	},
+
+	vehicle(frm) {
+		load_vehicle_wheels(frm);
+	},
 });
 
 frappe.ui.form.on("Trip Steps", {
@@ -140,6 +154,18 @@ frappe.ui.form.on("Trip Simulation Table", {
 		calculate_totals(frm);
 	},
 
+	tyre_price(frm) {
+		calculate_totals(frm);
+	},
+
+	number_of_tyres(frm) {
+		calculate_totals(frm);
+	},
+
+	tyre_lifecycle_km(frm) {
+		calculate_totals(frm);
+	},
+
 	amount(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		validate_row_amount(frm, row);
@@ -152,11 +178,12 @@ frappe.ui.form.on("Trip Simulation Table", {
 });
 
 function calculate_totals(frm) {
-	apply_calculated_expenses(frm);
-
 	const total_distance = (frm.doc.fuel || []).reduce((total, row) => {
 		return total + flt(row.distance);
 	}, 0);
+	frm.doc.total_distance_km = total_distance;
+	apply_calculated_expenses(frm);
+
 	const total_fuel_consumption_qty = (frm.doc.fuel || []).reduce((total, row) => {
 		return total + flt(row.fuel_consumption_qty);
 	}, 0);
@@ -167,17 +194,17 @@ function calculate_totals(frm) {
 	const total_trip_cost = total_fuel_costs + total_expenses;
 
 	const expected_revenue = flt(frm.doc.expected_revenue);
-	const trip_gross_profit_amount = flt(expected_revenue - total_trip_cost, 2);
-	const trip_gross_profit = expected_revenue
-		? flt(trip_gross_profit_amount / expected_revenue * 100, 4)
+	const net_profit = flt(expected_revenue - total_trip_cost, 2);
+	const net_profit_margin = expected_revenue
+		? flt(net_profit / expected_revenue * 100, 4)
 		: 0;
 
 	frm.set_value("total_distance_km", total_distance);
 	frm.set_value("total_fuel_consumption_qty_ratio", total_fuel_consumption_qty);
 	frm.set_value("total_fuel_costs", total_fuel_costs);
 	frm.set_value("total_trip_cost", total_trip_cost);
-	frm.set_value("trip_gross_profit_amount", trip_gross_profit_amount);
-	frm.set_value("trip_gross_profit", trip_gross_profit);
+	frm.set_value("net_profit", net_profit);
+	frm.set_value("net_profit_", net_profit_margin);
 }
 
 function apply_calculated_expenses(frm) {
@@ -189,7 +216,12 @@ function apply_calculated_expenses(frm) {
 			return;
 		}
 
-		if (expense_limit.calculation_method === "Per Trip Day") {
+		if (row.expense === "Tyres") {
+			row.rate = get_tyre_cost_per_km(row.tyre_price, row.number_of_tyres, row.tyre_lifecycle_km);
+			row.quantity = (frm.doc.fuel || []).reduce((total, step) => total + flt(step.distance), 0);
+			row.amount = flt(row.rate) * flt(row.quantity);
+			row.description = `${format_formula_number(row.tyre_price)} x ${format_formula_number(row.number_of_tyres)} tyres / ${format_formula_number(row.tyre_lifecycle_km)} km x ${format_formula_number(row.quantity)} km`;
+		} else if (expense_limit.calculation_method === "Per Trip Day") {
 			row.rate = flt(expense_limit.amount);
 			row.quantity = flt(frm.doc.days_in_trip);
 			row.amount = flt(row.rate) * flt(row.quantity);
@@ -205,6 +237,11 @@ function apply_calculated_expenses(frm) {
 			row.quantity = flt(frm.doc.days_in_trip);
 			row.amount = flt(row.rate) * flt(row.quantity);
 			row.description = `${format_formula_number(frm.doc.vehicle_costs)} / ${format_formula_number(month_number)} / 12 / 30 x ${format_formula_number(row.quantity)} trip days`;
+		} else if (expense_limit.calculation_method === "Percentage of Expected Revenue") {
+			row.quantity = flt(row.quantity);
+			row.rate = flt(frm.doc.expected_revenue) / 100;
+			row.amount = flt(row.rate) * flt(row.quantity);
+			row.description = `${format_formula_number(row.quantity)}% of ${format_formula_number(frm.doc.expected_revenue)}`;
 		} else {
 			row.rate = flt(expense_limit.amount);
 			row.quantity = 1;
@@ -264,6 +301,9 @@ function validate_row_expense(frm, row) {
 	if (!row || !row.expense) {
 		return;
 	}
+	if (row.expense === "Tyres") {
+		return;
+	}
 
 	const duplicate = (frm.doc.trip_expenses_outline || []).some((other_row) => {
 		return other_row.name !== row.name && other_row.expense === row.expense;
@@ -289,7 +329,7 @@ function validate_row_amount(frm, row) {
 
 	const limits = frm._route_expense_limits || {};
 	const expense_limit = limits[row.expense] || {};
-	const max_amount = get_allowed_expense_amount(expense_limit, frm);
+	const max_amount = get_allowed_expense_amount(expense_limit, frm, row.quantity);
 
 	if (frm.doc.route && limits[row.expense] !== undefined && flt(row.amount) > max_amount) {
 		frappe.msgprint(
@@ -299,7 +339,7 @@ function validate_row_amount(frm, row) {
 	}
 }
 
-function get_allowed_expense_amount(expense_limit, frm) {
+function get_allowed_expense_amount(expense_limit, frm, percentage_override = null) {
 	const amount = flt(expense_limit.amount);
 	if (expense_limit.calculation_method === "Per Trip Day") {
 		return amount * flt(frm.doc.days_in_trip);
@@ -310,7 +350,12 @@ function get_allowed_expense_amount(expense_limit, frm) {
 	if (expense_limit.calculation_method === "Vehicle Depreciation") {
 		return get_vehicle_depreciation_rate(frm, get_depreciation_month_number(frm)) * flt(frm.doc.days_in_trip);
 	}
-
+	if (expense_limit.calculation_method === "Percentage of Expected Revenue") {
+		const percentage = percentage_override === null
+			? flt(expense_limit.percentage)
+			: flt(percentage_override);
+		return flt(frm.doc.expected_revenue) * percentage / 100;
+	}
 	return amount;
 }
 
@@ -330,6 +375,35 @@ function get_vehicle_depreciation_rate(frm, month_number) {
 	}
 
 	return flt(frm.doc.vehicle_costs) / month_number / 12 / 30;
+}
+
+function get_tyre_cost_per_km(tyre_price, vehicle_wheels, tyre_lifecycle_km) {
+	tyre_lifecycle_km = flt(tyre_lifecycle_km);
+	if (!tyre_lifecycle_km) {
+		return 0;
+	}
+
+	return flt(tyre_price) * flt(vehicle_wheels) / tyre_lifecycle_km;
+}
+
+function load_vehicle_wheels(frm) {
+	if (!frm.doc.vehicle) {
+		frm._vehicle_wheels = 0;
+		apply_calculated_expenses(frm);
+		calculate_totals(frm);
+		return;
+	}
+
+	frappe.db.get_value("Vehicle", frm.doc.vehicle, "wheels").then((response) => {
+		frm._vehicle_wheels = flt(response.message?.wheels);
+		(frm.doc.trip_expenses_outline || []).forEach((row) => {
+			if (row.expense === "Tyres" && !flt(row.number_of_tyres)) {
+				row.number_of_tyres = frm._vehicle_wheels;
+			}
+		});
+		apply_calculated_expenses(frm);
+		calculate_totals(frm);
+	});
 }
 
 function get_depreciation_month_number(frm) {
@@ -533,6 +607,38 @@ function make_fuel_purchase_order(frm) {
 				indicator: "green",
 			});
 			frm.reload_doc();
+		},
+	});
+}
+
+function make_quotation(frm) {
+	if (frm.doc.docstatus !== 1) {
+		frappe.msgprint(__("Please submit the Trip Simulation before creating a Quotation."));
+		return;
+	}
+	if (frm.doc.quotation) {
+		frappe.set_route("Form", "Quotation", frm.doc.quotation);
+		return;
+	}
+	if (!flt(frm.doc.expected_revenue)) {
+		frappe.msgprint(__("Expected Revenue must be greater than zero before creating a Quotation."));
+		return;
+	}
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.create_quotation",
+		args: {
+			trip_simulation: frm.doc.name,
+		},
+		freeze: true,
+		freeze_message: __("Creating Quotation..."),
+		callback(response) {
+			const quotation = response.message;
+			if (!quotation) {
+				return;
+			}
+
+			frappe.set_route("Form", quotation.doctype, quotation.name);
 		},
 	});
 }

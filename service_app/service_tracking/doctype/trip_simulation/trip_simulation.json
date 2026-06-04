@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-05-28 12:37:39.647379",
+ "creation": "2026-05-29 00:46:09.315827",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -10,20 +10,17 @@
   "transaction_date",
   "departure_date",
   "days_in_trip",
+  "cost_center",
   "column_break_uvtt",
   "route",
   "return_date",
   "project",
-  "cost_center",
+  "trailer",
   "column_break_sydu",
   "driver",
+  "driver_contact",
   "supplier",
   "vehicle",
-  "trailer",
-  "revenue_details_section",
-  "revenue",
-  "column_break_tczi",
-  "customer",
   "constants_section",
   "salaries",
   "depreciation",
@@ -41,16 +38,21 @@
   "total_fuel_costs",
   "fuel_item",
   "fuel_purchase_order",
+  "quotation",
   "trip_expenses_section",
   "trip_expenses_outline",
   "amended_from",
   "trip_profitability_analysis_tab",
+  "revenue_details_section",
+  "customer",
+  "column_break_tczi",
   "expected_revenue",
-  "trip_gross_profit_amount",
-  "targeted_gross_profit",
+  "profitability_details_section",
+  "net_profit",
+  "targeted_net_profit",
   "column_break_xgja",
   "total_trip_cost",
-  "trip_gross_profit",
+  "net_profit_",
   "naming_series"
  ],
  "fields": [
@@ -82,6 +84,7 @@
    "reqd": 1
   },
   {
+   "bold": 1,
    "fieldname": "driver",
    "fieldtype": "Link",
    "label": "Driver",
@@ -93,14 +96,6 @@
    "fieldname": "trip_expenses_section",
    "fieldtype": "Section Break",
    "label": "Trip Expenses"
-  },
-  {
-   "fetch_from": "link_fwxp.grand_total",
-   "fieldname": "revenue",
-   "fieldtype": "Link",
-   "label": "Quotation",
-   "options": "Quotation",
-   "reqd": 1
   },
   {
    "fieldname": "trip_expenses_outline",
@@ -116,19 +111,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "trip_gross_profit_amount",
-   "fieldtype": "Currency",
-   "label": "Trip Gross Profit",
-   "read_only": 1
-  },
-  {
-   "fieldname": "trip_gross_profit",
-   "fieldtype": "Percent",
-   "label": "Trip Gross Profit %",
-   "precision": "4",
-   "read_only": 1
-  },
-  {
    "fieldname": "amended_from",
    "fieldtype": "Link",
    "label": "Amended From",
@@ -141,11 +123,11 @@
   {
    "allow_on_submit": 1,
    "bold": 1,
-   "fetch_from": "revenue.grand_total",
    "fieldname": "expected_revenue",
    "fieldtype": "Currency",
    "label": "Expected Revenue",
-   "read_only": 1
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "fuel_costs_section",
@@ -163,7 +145,8 @@
    "fieldname": "fuel_price",
    "fieldtype": "Currency",
    "label": "Fuel Price",
-   "non_negative": 1
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "total_distance_km",
@@ -203,14 +186,12 @@
    "fieldtype": "Column Break"
   },
   {
-   "allow_on_submit": 1,
    "bold": 1,
-   "fetch_from": "revenue.customer_name",
    "fieldname": "customer",
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer",
-   "read_only": 1
+   "reqd": 1
   },
   {
    "bold": 1,
@@ -228,11 +209,6 @@
    "fieldname": "trip_profitability_analysis_tab",
    "fieldtype": "Tab Break",
    "label": "Trip Profitability Analysis"
-  },
-  {
-   "fieldname": "targeted_gross_profit",
-   "fieldtype": "Percent",
-   "label": "Targeted Gross Profit"
   },
   {
    "fieldname": "total_fuel_costs",
@@ -259,22 +235,30 @@
   {
    "fieldname": "salaries",
    "fieldtype": "Currency",
-   "label": "Salaries"
+   "label": "Salaries",
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "active_vehicles",
    "fieldtype": "Int",
-   "label": "Active Vehicles"
+   "label": "Active Vehicles",
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "vehicle_costs",
    "fieldtype": "Currency",
-   "label": "Vehicle Costs"
+   "label": "Vehicle Costs",
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "depreciation",
    "fieldtype": "Currency",
-   "label": "Depreciation"
+   "label": "Depreciation",
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "fieldname": "column_break_fsri",
@@ -291,13 +275,15 @@
    "fieldname": "supplier",
    "fieldtype": "Link",
    "label": "Supplier",
-   "options": "Supplier"
+   "options": "Supplier",
+   "reqd": 1
   },
   {
    "fieldname": "vehicle",
    "fieldtype": "Link",
    "label": "Vehicle",
-   "options": "Vehicle"
+   "options": "Vehicle",
+   "reqd": 1
   },
   {
    "fieldname": "trailer",
@@ -309,7 +295,8 @@
    "fieldname": "cost_center",
    "fieldtype": "Link",
    "label": "Cost Center",
-   "options": "Cost Center"
+   "options": "Cost Center",
+   "reqd": 1
   },
   {
    "fieldname": "fuel_supplier",
@@ -327,7 +314,8 @@
    "fieldname": "fuel_item",
    "fieldtype": "Link",
    "label": "Fuel Item",
-   "options": "Item"
+   "options": "Item",
+   "reqd": 1
   },
   {
    "allow_on_submit": 1,
@@ -336,6 +324,46 @@
    "label": "Fuel Purchase Order",
    "options": "Purchase Order",
    "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "quotation",
+   "fieldtype": "Link",
+   "label": "Quotation",
+   "no_copy": 1,
+   "options": "Quotation",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "driver_contact",
+   "fieldtype": "Int",
+   "label": "Driver Contact",
+   "reqd": 1
+  },
+  {
+   "fieldname": "profitability_details_section",
+   "fieldtype": "Section Break",
+   "label": "Profitability Details"
+  },
+  {
+   "fieldname": "net_profit",
+   "fieldtype": "Currency",
+   "label": "Net Profit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "targeted_net_profit",
+   "fieldtype": "Percent",
+   "label": "Targeted Net Profit %",
+   "reqd": 1
+  },
+  {
+   "fieldname": "net_profit_",
+   "fieldtype": "Percent",
+   "label": "Net Profit %",
+   "precision": "4",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -343,11 +371,15 @@
  "is_submittable": 1,
  "links": [
   {
+   "link_doctype": "Quotation",
+   "link_fieldname": "custom_trip_simulation"
+  },
+  {
    "link_doctype": "Purchase Order",
    "link_fieldname": "custom_trip_simulation"
   }
  ],
- "modified": "2026-05-29 00:37:45.010564",
+ "modified": "2026-06-04 13:30:01.257728",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Trip Simulation",

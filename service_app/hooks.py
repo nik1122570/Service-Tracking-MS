@@ -273,6 +273,9 @@ override_doctype_dashboards = {
 	"Purchase Order": [
 		"service_app.service_tracking.trip_settlement_dashboards.purchase_order_dashboard"
 	],
+	"Quotation": [
+		"service_app.service_tracking.trip_settlement_dashboards.quotation_dashboard"
+	],
 	"Sales Order": [
 		"service_app.service_tracking.trip_settlement_dashboards.sales_order_dashboard"
 	],

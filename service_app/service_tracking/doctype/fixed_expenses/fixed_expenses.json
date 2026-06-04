@@ -15,6 +15,7 @@
   "column_break_d5ipf",
   "fixed_value",
   "calculation_method",
+  "percentage",
   "item"
  ],
  "fields": [
@@ -48,13 +49,20 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Fixed Amount",
-   "reqd": 1
+   "mandatory_depends_on": "eval:doc.description != 'Tyres' && doc.calculation_method != 'Percentage of Expected Revenue'"
   },
   {
    "fieldname": "calculation_method",
    "fieldtype": "Select",
    "label": "Calculation method",
-   "options": "\nPer Trip Day\nSalary Allocation\nVehicle Depreciation"
+   "options": "\nPer Trip Day\nSalary Allocation\nVehicle Depreciation\nPercentage of Expected Revenue"
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'Percentage of Expected Revenue'",
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "label": "Percentage of Expected Revenue",
+   "mandatory_depends_on": "eval:doc.calculation_method == 'Percentage of Expected Revenue'"
   },
   {
    "default": "0",

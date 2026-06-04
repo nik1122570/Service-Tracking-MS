@@ -11,6 +11,9 @@
   "quantity",
   "rate",
   "amount",
+  "tyre_price",
+  "number_of_tyres",
+  "tyre_lifecycle_km",
   "exchange_rate",
   "base_amount",
   "purchase_order",
@@ -26,7 +29,7 @@
   },
   {
    "fieldname": "quantity",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Quantity"
   },
@@ -49,6 +52,32 @@
    "in_list_view": 1,
    "label": "Rate",
    "options": "currency"
+  },
+  {
+   "depends_on": "eval:doc.expense == 'Tyres'",
+   "fieldname": "tyre_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Tyre Price",
+   "mandatory_depends_on": "eval:doc.expense == 'Tyres'",
+   "options": "currency"
+  },
+  {
+   "depends_on": "eval:doc.expense == 'Tyres'",
+   "fieldname": "number_of_tyres",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Number of Tyres",
+   "mandatory_depends_on": "eval:doc.expense == 'Tyres'"
+  },
+  {
+   "depends_on": "eval:doc.expense == 'Tyres'",
+   "fieldname": "tyre_lifecycle_km",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Tyre Lifecycle (km)",
+   "mandatory_depends_on": "eval:doc.expense == 'Tyres'",
+   "non_negative": 1
   },
   {
    "fieldname": "currency",
