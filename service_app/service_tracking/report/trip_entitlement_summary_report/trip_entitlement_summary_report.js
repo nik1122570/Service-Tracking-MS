@@ -15,6 +15,14 @@ frappe.query_reports["Trip Entitlement Summary Report"] = {
 			default: frappe.datetime.get_today(),
 		},
 		{
+			fieldname: "invoice_as_at_date",
+			label: __("Invoice As At Date"),
+			fieldtype: "Date",
+			reqd: 1,
+			default: frappe.datetime.get_today(),
+			description: __("Includes submitted Sales Invoices posted on or before this date."),
+		},
+		{
 			fieldname: "project",
 			label: __("Project"),
 			fieldtype: "Link",

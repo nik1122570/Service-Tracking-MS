@@ -178,6 +178,19 @@ class TripSettlementBatch(Document):
 		if not self.target_document:
 			frappe.throw(_("This Trip Settlement Batch is not linked to an ERPNext document."))
 
+		if self.target_doctype == "Sales Order":
+			submitted_invoices = get_submitted_sales_invoices(self.target_document)
+			if submitted_invoices:
+				frappe.throw(
+					_(
+						"Sales Order {0} has submitted Sales Invoices: {1}. Cancel or credit those invoices before unlinking the Revenue settlement."
+					).format(
+						frappe.bold(self.target_document),
+						", ".join(submitted_invoices),
+					),
+					title=_("Submitted Sales Invoices Exist"),
+				)
+
 		for row in self.get("items") or []:
 			source_row = get_entitlement_child_row(row.trip_entitlement_row)
 			if not source_row or source_row.trip_settlement_batch != self.name:
@@ -1059,4 +1072,20 @@ def clear_target_document_batch_reference(target_doctype, target_document, batch
 				None,
 				update_modified=False,
 			)
+
+
+def get_submitted_sales_invoices(sales_order):
+	if not sales_order:
+		return []
+
+	return frappe.get_all(
+		"Sales Invoice Item",
+		filters={
+			"sales_order": sales_order,
+			"docstatus": 1,
+		},
+		pluck="parent",
+		distinct=True,
+		order_by="parent asc",
+	)
 
