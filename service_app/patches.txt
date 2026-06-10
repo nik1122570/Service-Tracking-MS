@@ -30,3 +30,4 @@ service_app.patches.backfill_trip_simulation_net_profit
 service_app.patches.configure_revenue_percentage_expenses
 service_app.patches.migrate_revenue_percentage_expense_quantities
 service_app.patches.configure_tyre_row_calculation
+service_app.patches.normalize_trip_expense_rows

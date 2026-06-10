@@ -6,15 +6,10 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
-
-PERMANENT_FIXED_EXPENSES = (
-	"Driver Mileage",
-	"Salaries",
-	"Depreciation",
-	"Management Fee",
-	"Tyres",
-	"Car Wash",
-	"Maintenance Fee",
+from service_app.service_tracking.expense_labels import (
+	STANDARD_FIXED_EXPENSES,
+	canonical_expense_label,
+	normalize_expense_name,
 )
 
 
@@ -27,26 +22,36 @@ class SimulationRoutes(Document):
 	def ensure_permanent_fixed_expenses(self):
 		default_expenses = {
 			expense: get_default_fixed_expense_row(expense)
-			for expense in PERMANENT_FIXED_EXPENSES
+			for expense in STANDARD_FIXED_EXPENSES
 		}
-		existing_expenses = set()
+		existing_expenses = {}
+		unique_rows = []
 
 		for row in self.fixed_expenses:
 			if not row.expense:
 				continue
 
-			existing_expenses.add(row.expense)
+			canonical_expense = canonical_expense_label(row.expense)
+			expense_key = normalize_expense_name(canonical_expense)
+			if expense_key in existing_expenses:
+				continue
 
-			if row.expense in default_expenses:
-				row.currency = default_expenses[row.expense].get("currency")
-				row.amount = default_expenses[row.expense].get("amount")
+			row.expense = canonical_expense
+			existing_expenses[expense_key] = row
+			unique_rows.append(row)
 
-		for expense in PERMANENT_FIXED_EXPENSES:
-			if expense in existing_expenses:
+			if canonical_expense in default_expenses:
+				row.currency = default_expenses[canonical_expense].get("currency")
+				row.amount = default_expenses[canonical_expense].get("amount")
+
+		self.fixed_expenses = unique_rows
+		for expense in STANDARD_FIXED_EXPENSES:
+			expense_key = normalize_expense_name(expense)
+			if expense_key in existing_expenses:
 				continue
 
 			self.append("fixed_expenses", default_expenses[expense])
-			existing_expenses.add(expense)
+			existing_expenses[expense_key] = self.fixed_expenses[-1]
 
 	def calculate_route_totals(self):
 		self.total_distance = sum(flt(row.distance) for row in self.trip_steps)
@@ -59,7 +64,8 @@ class SimulationRoutes(Document):
 			if not row.expense:
 				continue
 
-			if row.expense in seen_expenses:
+			expense_key = normalize_expense_name(row.expense)
+			if expense_key in seen_expenses:
 				frappe.throw(
 					_("Expense {0} is already added in Fixed Expenses. Remove the duplicate row {1}.").format(
 						frappe.bold(row.expense),
@@ -67,10 +73,11 @@ class SimulationRoutes(Document):
 					)
 				)
 
-			seen_expenses.add(row.expense)
+			seen_expenses.add(expense_key)
 
 
 def get_default_fixed_expense_row(expense):
+	expense = canonical_expense_label(expense)
 	defaults = frappe.db.get_value(
 		"Fixed Expenses",
 		expense,
@@ -94,4 +101,4 @@ def get_default_fixed_expense_row(expense):
 
 @frappe.whitelist()
 def get_permanent_fixed_expenses():
-	return [get_default_fixed_expense_row(expense) for expense in PERMANENT_FIXED_EXPENSES]
+	return [get_default_fixed_expense_row(expense) for expense in STANDARD_FIXED_EXPENSES]

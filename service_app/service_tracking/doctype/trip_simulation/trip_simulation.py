@@ -7,6 +7,8 @@ from frappe.model.document import Document
 from frappe.utils import date_diff, flt, getdate, nowdate
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from service_app.service_tracking.expense_labels import canonical_expense_label, normalize_expense_name
+
 
 class TripSimulation(Document):
 	def validate(self):
@@ -44,7 +46,9 @@ class TripSimulation(Document):
 			if not row.expense:
 				continue
 
-			if row.expense in seen_expenses:
+			row.expense = canonical_expense_label(row.expense)
+			expense_key = normalize_expense_name(row.expense)
+			if expense_key in seen_expenses:
 				frappe.throw(
 					_("Expense {0} is already added in Trip Expenses Outline. Remove the duplicate row {1}.").format(
 						frappe.bold(row.expense),
@@ -52,7 +56,7 @@ class TripSimulation(Document):
 					)
 				)
 
-			seen_expenses.add(row.expense)
+			seen_expenses.add(expense_key)
 
 	def validate_expenses_against_route(self):
 		if not self.route:
@@ -62,6 +66,10 @@ class TripSimulation(Document):
 
 		for row in self.trip_expenses_outline:
 			if not row.expense:
+				continue
+
+			row.expense = canonical_expense_label(row.expense)
+			if normalize_expense_name(row.expense) == "tyres":
 				continue
 
 			if row.expense not in route_expense_limits:
@@ -74,9 +82,6 @@ class TripSimulation(Document):
 				)
 
 			expense_limit = route_expense_limits[row.expense]
-			if row.expense == "Tyres":
-				continue
-
 			max_amount = get_allowed_expense_amount(
 				expense_limit,
 				self.days_in_trip,
@@ -106,11 +111,11 @@ class TripSimulation(Document):
 
 		route_expense_limits = get_route_expense_limits(self.route)
 		for row in self.trip_expenses_outline:
-			if not row.expense or row.expense not in route_expense_limits:
+			if not row.expense:
 				continue
 
-			expense_limit = route_expense_limits[row.expense]
-			if row.expense == "Tyres":
+			row.expense = canonical_expense_label(row.expense)
+			if normalize_expense_name(row.expense) == "tyres":
 				row.rate = get_tyre_cost_per_km(
 					row.tyre_price,
 					row.number_of_tyres,
@@ -126,6 +131,10 @@ class TripSimulation(Document):
 				)
 				continue
 
+			if row.expense not in route_expense_limits:
+				continue
+
+			expense_limit = route_expense_limits[row.expense]
 			if expense_limit.get("calculation_method") == "Per Trip Day":
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = self.days_in_trip or 0
@@ -253,14 +262,22 @@ def get_route_details(
 	total_distance = sum(flt(row.get("distance")) for row in trip_steps)
 	total_fuel_consumption_qty = sum(flt(row.get("fuel_consumption_qty")) for row in trip_steps)
 
+	seen_expenses = set()
 	for row in route_doc.fixed_expenses:
-		expense_meta = get_fixed_expense_meta(row.expense)
+		expense = canonical_expense_label(row.expense)
+		expense_key = normalize_expense_name(expense)
+		if not expense or expense_key in seen_expenses:
+			continue
+
+		seen_expenses.add(expense_key)
+		expense_meta = get_fixed_expense_meta(expense)
 		rate = flt(row.amount)
 		quantity = 1
 		amount = rate
 		description = f"Fetched from route {route_doc.name}"
+		vehicle_wheels = 0
 
-		if row.expense == "Tyres":
+		if expense_key == "tyres":
 			vehicle_wheels = get_vehicle_wheels(vehicle)
 			rate = 0
 			quantity = total_distance
@@ -294,12 +311,12 @@ def get_route_details(
 
 		fixed_expenses.append(
 			{
-				"expense": row.expense,
+				"expense": expense,
 				"quantity": quantity,
 				"rate": rate,
 				"amount": amount,
 				"description": description,
-				"number_of_tyres": vehicle_wheels if row.expense == "Tyres" else 0,
+				"number_of_tyres": vehicle_wheels,
 			}
 		)
 
@@ -323,11 +340,18 @@ def get_route_expense_limits(route):
 
 	route_doc = frappe.get_doc("Simulation Routes", route)
 	limits = {}
+	seen_expenses = set()
 
 	for row in route_doc.fixed_expenses:
 		if row.expense:
-			expense_meta = get_fixed_expense_meta(row.expense)
-			limits[row.expense] = {
+			expense = canonical_expense_label(row.expense)
+			expense_key = normalize_expense_name(expense)
+			if expense_key in seen_expenses:
+				continue
+
+			seen_expenses.add(expense_key)
+			expense_meta = get_fixed_expense_meta(expense)
+			limits[expense] = {
 				"amount": flt(row.amount),
 				"calculation_method": expense_meta.get("calculation_method"),
 				"percentage": flt(expense_meta.get("percentage")),
@@ -671,6 +695,7 @@ def get_fixed_expense_meta(expense):
 	if not expense:
 		return {}
 
+	expense = canonical_expense_label(expense)
 	return frappe.db.get_value(
 		"Fixed Expenses",
 		expense,
