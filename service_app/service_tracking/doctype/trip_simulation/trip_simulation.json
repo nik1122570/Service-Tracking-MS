@@ -98,6 +98,7 @@
    "label": "Trip Expenses"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "trip_expenses_outline",
    "fieldtype": "Table",
    "label": "Trip Expenses Outline",
@@ -105,6 +106,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "total_trip_cost",
    "fieldtype": "Currency",
    "label": "Total Trip Cost",
@@ -149,6 +151,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "total_distance_km",
    "fieldtype": "Int",
    "label": "Total Distance (km)",
@@ -194,6 +197,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "bold": 1,
    "fieldname": "days_in_trip",
    "fieldtype": "Int",
@@ -211,12 +215,14 @@
    "label": "Trip Profitability Analysis"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "total_fuel_costs",
    "fieldtype": "Currency",
    "label": "Total Fuel Costs",
    "read_only": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "total_fuel_consumption_qty_ratio",
    "fieldtype": "Int",
    "label": "Total Fuel Consumption Ratio",
@@ -347,6 +353,7 @@
    "label": "Profitability Details"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "net_profit",
    "fieldtype": "Currency",
    "label": "Net Profit",
@@ -359,6 +366,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "net_profit_",
    "fieldtype": "Percent",
    "label": "Net Profit %",

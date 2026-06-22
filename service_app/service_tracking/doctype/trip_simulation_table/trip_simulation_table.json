@@ -21,6 +21,7 @@
  ],
  "fields": [
   {
+   "allow_on_submit": 1,
    "fieldname": "expense",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -28,12 +29,14 @@
    "options": "Fixed Expenses"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "quantity",
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Quantity"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -41,12 +44,14 @@
    "options": "currency"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "description",
    "fieldtype": "Small Text",
    "in_list_view": 1,
    "label": "Description"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "rate",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -54,6 +59,7 @@
    "options": "currency"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.expense == 'Tyres'",
    "fieldname": "tyre_price",
    "fieldtype": "Currency",
@@ -63,6 +69,7 @@
    "options": "currency"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.expense == 'Tyres'",
    "fieldname": "number_of_tyres",
    "fieldtype": "Float",
@@ -71,6 +78,7 @@
    "mandatory_depends_on": "eval:doc.expense == 'Tyres'"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.expense == 'Tyres'",
    "fieldname": "tyre_lifecycle_km",
    "fieldtype": "Float",
@@ -80,6 +88,7 @@
    "non_negative": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "currency",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -87,6 +96,7 @@
    "options": "Currency"
   },
   {
+   "allow_on_submit": 1,
    "default": "1",
    "fieldname": "exchange_rate",
    "fieldtype": "Float",
@@ -94,6 +104,7 @@
    "label": "Exchange Rate"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "base_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
