@@ -16,6 +16,7 @@ PROJECT_ITEM_FIELDS_BY_SETTLEMENT_TYPE = {
 
 class TripSettlementBatch(Document):
 	def validate(self):
+		self.set_transaction_date()
 		self.validate_date_range()
 		self.set_target_doctype()
 		self.validate_party_fields()
@@ -275,16 +276,30 @@ class TripSettlementBatch(Document):
 	def validate_project_item(self):
 		get_project_settlement_item(self.project, self.settlement_type)
 
+	def set_transaction_date(self):
+		if not self.get("transaction_date"):
+			self.transaction_date = today()
+
+	def get_transaction_date(self):
+		return self.get("transaction_date") or today()
+
+	def get_required_date(self):
+		transaction_date = getdate(self.get_transaction_date())
+		end_date = getdate(self.end_date) if self.end_date else transaction_date
+		return max(end_date, transaction_date)
+
 	def create_sales_order(self):
 		customer = self.customer
 		if not customer:
 			frappe.throw(_("Customer is required for Revenue settlement."))
 
+		transaction_date = self.get_transaction_date()
+		required_date = self.get_required_date()
 		doc = frappe.new_doc("Sales Order")
 		doc.customer = customer
 		doc.order_type = "Sales"
-		doc.transaction_date = today()
-		doc.delivery_date = self.end_date or today()
+		doc.transaction_date = transaction_date
+		doc.delivery_date = required_date
 		doc.project = self.project
 		set_default_company(doc)
 		set_currency_defaults(doc)
@@ -304,7 +319,7 @@ class TripSettlementBatch(Document):
 						"base_rate": item.rate,
 						"amount": item.quantity * item.rate,
 						"base_amount": item.quantity * item.rate,
-						"delivery_date": self.end_date or today(),
+						"delivery_date": required_date,
 					},
 				),
 			)
@@ -312,10 +327,12 @@ class TripSettlementBatch(Document):
 		return doc
 
 	def create_material_request(self):
+		transaction_date = self.get_transaction_date()
+		required_date = self.get_required_date()
 		doc = frappe.new_doc("Material Request")
 		doc.material_request_type = "Purchase"
-		doc.transaction_date = today()
-		doc.schedule_date = self.end_date or today()
+		doc.transaction_date = transaction_date
+		doc.schedule_date = required_date
 		doc.project = self.project
 		set_default_company(doc)
 		set_compatible_field(doc, ("trip_settlement_batch", "custom_trip_settlement_batch"), self.name)
@@ -327,7 +344,7 @@ class TripSettlementBatch(Document):
 					item,
 					"Material Request Item",
 					self.get_item_description(item),
-					{"schedule_date": self.end_date or today()},
+					{"schedule_date": required_date},
 				),
 			)
 
@@ -337,11 +354,13 @@ class TripSettlementBatch(Document):
 		if not self.supplier:
 			frappe.throw(_("Supplier is required for Mileage settlement."))
 
+		transaction_date = self.get_transaction_date()
+		required_date = self.get_required_date()
 		doc = frappe.new_doc("Purchase Order")
 		doc.supplier = self.supplier
 		doc.title = self.supplier
-		doc.transaction_date = today()
-		doc.schedule_date = self.end_date or today()
+		doc.transaction_date = transaction_date
+		doc.schedule_date = required_date
 		doc.project = self.project
 		set_default_company(doc)
 		set_currency_defaults(doc)
@@ -360,7 +379,7 @@ class TripSettlementBatch(Document):
 						"base_rate": item.rate,
 						"amount": item.quantity * item.rate,
 						"base_amount": item.quantity * item.rate,
-						"schedule_date": self.end_date or today(),
+						"schedule_date": required_date,
 					},
 				),
 			)

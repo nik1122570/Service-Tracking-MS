@@ -3,6 +3,7 @@
 
 frappe.ui.form.on("Trip Settlement Batch", {
 	refresh(frm) {
+		set_transaction_date(frm);
 		set_target_doctype(frm);
 		set_party_requirements(frm);
 		calculate_totals(frm);
@@ -41,6 +42,7 @@ frappe.ui.form.on("Trip Settlement Batch", {
 	},
 
 	validate(frm) {
+		set_transaction_date(frm);
 		set_target_doctype(frm);
 		calculate_totals(frm);
 	},
@@ -53,6 +55,12 @@ frappe.ui.form.on("Trip Settlement Batch", {
 		calculate_totals(frm);
 	},
 });
+
+function set_transaction_date(frm) {
+	if (frappe.meta.has_field(frm.doctype, "transaction_date") && !frm.doc.transaction_date) {
+		frm.set_value("transaction_date", frappe.datetime.get_today());
+	}
+}
 
 function set_target_doctype(frm) {
 	const target_doctype = {
