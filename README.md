@@ -1,6 +1,9 @@
 ### Service Tracking
 
 Service Management
+Service Tracking MS is a comprehensive ERPNext-based maintenance and fleet service management application designed to streamline vehicle servicing, spare parts control, tyre management, workshop operations, and maintenance cost tracking.
+
+The system enables organizations to create and manage Job Cards, track spare parts and tyre replacements, monitor service history, control workshop activities, and analyze maintenance expenses through real-time dashboards and reports.
 
 ### Installation
 
