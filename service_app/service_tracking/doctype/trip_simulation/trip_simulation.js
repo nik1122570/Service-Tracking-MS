@@ -2,19 +2,42 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Trip Simulation", {
+	onload(frm) {
+		frm._trip_simulation_refreshing = true;
+	},
+
 	refresh(frm) {
+		frm._trip_simulation_refreshing = true;
+
 		if (frm.doc.docstatus === 1) {
 			load_route_expense_limits(frm, { recalculate: false });
 			add_submitted_buttons(frm);
+			release_refresh_guard(frm);
 			return;
 		}
 
-		calculate_days_in_trip(frm);
-		load_route_expense_limits(frm);
-		load_vehicle_wheels(frm);
+		if (frm.is_new()) {
+			calculate_days_in_trip(frm);
+			load_route_expense_limits(frm);
+			load_vehicle_wheels(frm);
+			release_refresh_guard(frm);
+			return;
+		}
+
+		load_route_expense_limits(frm, { recalculate: false });
+		release_refresh_guard(frm);
+	},
+
+	after_save(frm) {
+		frm._trip_simulation_refreshing = true;
+		release_refresh_guard(frm);
 	},
 
 	route(frm) {
+		if (!should_recalculate(frm)) {
+			return;
+		}
+
 		if (!frm.doc.route) {
 			frm._route_expense_limits = {};
 			frm.clear_table("fuel");
@@ -33,6 +56,7 @@ frappe.ui.form.on("Trip Simulation", {
 				salaries: frm.doc.salaries || 0,
 				active_vehicles: frm.doc.active_vehicles || 0,
 				vehicle_costs: frm.doc.vehicle_costs || 0,
+				maintenance_costs: frm.doc.maintenance_costs || 0,
 				depreciation_month_number: get_depreciation_month_number(frm),
 				expected_revenue: frm.doc.expected_revenue || 0,
 				vehicle: frm.doc.vehicle,
@@ -112,6 +136,11 @@ frappe.ui.form.on("Trip Simulation", {
 		calculate_totals(frm);
 	},
 
+	maintenance_costs(frm) {
+		apply_calculated_expenses(frm);
+		calculate_totals(frm);
+	},
+
 	vehicle(frm) {
 		load_vehicle_wheels(frm);
 	},
@@ -172,6 +201,10 @@ frappe.ui.form.on("Trip Simulation Table", {
 });
 
 function calculate_totals(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	const total_distance = (frm.doc.fuel || []).reduce((total, row) => {
 		return total + flt(row.distance);
 	}, 0);
@@ -201,6 +234,10 @@ function calculate_totals(frm) {
 }
 
 function apply_calculated_expenses(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	const limits = frm._route_expense_limits || {};
 	let changed = false;
 
@@ -228,7 +265,16 @@ function apply_calculated_expenses(frm) {
 			return;
 		}
 
-		if (expense_limit.calculation_method === "Per Trip Day") {
+		if (normalize_expense_name(row.expense) === "maintenance fee") {
+			const rate = get_maintenance_fee_daily_rate(frm);
+			const quantity = flt(frm.doc.days_in_trip);
+			changed = update_row_if_changed(row, {
+				rate,
+				quantity,
+				amount: flt(rate) * flt(quantity),
+				description: `${format_formula_number(frm.doc.maintenance_costs)} / 3 months / 30 days x ${format_formula_number(quantity)} trip days`,
+			}) || changed;
+		} else if (expense_limit.calculation_method === "Per Trip Day") {
 			const rate = flt(expense_limit.amount);
 			const quantity = flt(frm.doc.days_in_trip);
 			changed = update_row_if_changed(row, {
@@ -282,6 +328,10 @@ function apply_calculated_expenses(frm) {
 }
 
 function calculate_days_in_trip(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	if (!frm.doc.departure_date || !frm.doc.return_date) {
 		set_value_if_changed(frm, "days_in_trip", 0);
 		return;
@@ -312,7 +362,7 @@ function load_route_expense_limits(frm, options = {}) {
 		},
 		callback(response) {
 			frm._route_expense_limits = response.message || {};
-			if (!recalculate) {
+			if (!recalculate || !should_recalculate(frm)) {
 				return;
 			}
 
@@ -336,6 +386,10 @@ function add_submitted_buttons(frm) {
 }
 
 function validate_trip_expenses(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	(frm.doc.trip_expenses_outline || []).forEach((row) => {
 		validate_row_expense(frm, row);
 		validate_row_amount(frm, row);
@@ -343,6 +397,10 @@ function validate_trip_expenses(frm) {
 }
 
 function validate_row_expense(frm, row) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	if (!row || !row.expense) {
 		return;
 	}
@@ -370,6 +428,10 @@ function validate_row_expense(frm, row) {
 }
 
 function validate_row_amount(frm, row) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	if (!row || !row.expense) {
 		return;
 	}
@@ -392,6 +454,10 @@ function validate_row_amount(frm, row) {
 }
 
 function get_allowed_expense_amount(expense_limit, frm, percentage_override = null) {
+	if (normalize_expense_name(expense_limit.expense) === "maintenance fee") {
+		return get_maintenance_fee_daily_rate(frm) * flt(frm.doc.days_in_trip);
+	}
+
 	const amount = flt(expense_limit.amount);
 	if (expense_limit.calculation_method === "Per Trip Day") {
 		return amount * flt(frm.doc.days_in_trip);
@@ -429,6 +495,10 @@ function get_vehicle_depreciation_rate(frm, month_number) {
 	return flt(frm.doc.vehicle_costs) / month_number / 12 / 30;
 }
 
+function get_maintenance_fee_daily_rate(frm) {
+	return flt(frm.doc.maintenance_costs) / 3 / 30;
+}
+
 function get_tyre_cost_per_km(tyre_price, vehicle_wheels, tyre_lifecycle_km) {
 	tyre_lifecycle_km = flt(tyre_lifecycle_km);
 	if (!tyre_lifecycle_km) {
@@ -456,10 +526,23 @@ function canonical_expense_label(expense) {
 }
 
 function update_row_if_changed(row, values) {
+	const numeric_fields = new Set([
+		"quantity",
+		"rate",
+		"amount",
+		"tyre_price",
+		"number_of_tyres",
+		"tyre_lifecycle_km",
+		"exchange_rate",
+		"base_amount",
+	]);
 	let changed = false;
 	Object.keys(values).forEach((fieldname) => {
 		const value = values[fieldname];
-		if (row[fieldname] !== value) {
+		const is_same = numeric_fields.has(fieldname)
+			? flt(row[fieldname]) === flt(value)
+			: row[fieldname] === value;
+		if (!is_same) {
 			row[fieldname] = value;
 			changed = true;
 		}
@@ -474,6 +557,10 @@ function set_value_if_changed(frm, fieldname, value) {
 }
 
 function load_vehicle_wheels(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
 	if (!frm.doc.vehicle) {
 		frm._vehicle_wheels = 0;
 		apply_calculated_expenses(frm);
@@ -491,6 +578,25 @@ function load_vehicle_wheels(frm) {
 		apply_calculated_expenses(frm);
 		calculate_totals(frm);
 	});
+}
+
+function should_recalculate(frm) {
+	if (!frm || !frm.doc) {
+		return false;
+	}
+	if (frm.is_new()) {
+		return true;
+	}
+	if (frm._trip_simulation_refreshing) {
+		return false;
+	}
+	return frm.is_dirty();
+}
+
+function release_refresh_guard(frm) {
+	setTimeout(() => {
+		frm._trip_simulation_refreshing = false;
+	}, 300);
 }
 
 function get_depreciation_month_number(frm) {

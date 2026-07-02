@@ -88,6 +88,7 @@ class TripSimulation(Document):
 				self.salaries,
 				self.active_vehicles,
 				self.vehicle_costs,
+				self.maintenance_costs,
 				self.get_depreciation_month_number(),
 				self.expected_revenue,
 				row.quantity,
@@ -135,7 +136,15 @@ class TripSimulation(Document):
 				continue
 
 			expense_limit = route_expense_limits[row.expense]
-			if expense_limit.get("calculation_method") == "Per Trip Day":
+			if normalize_expense_name(row.expense) == "maintenance fee":
+				row.rate = get_maintenance_fee_daily_rate(self.maintenance_costs)
+				row.quantity = self.days_in_trip or 0
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(self.maintenance_costs)} / 3 months / 30 days "
+					f"x {format_formula_number(row.quantity)} trip days"
+				)
+			elif expense_limit.get("calculation_method") == "Per Trip Day":
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = self.days_in_trip or 0
 				row.amount = flt(row.rate) * flt(row.quantity)
@@ -206,6 +215,7 @@ class TripSimulation(Document):
 			self.salaries,
 			self.active_vehicles,
 			self.vehicle_costs,
+			self.maintenance_costs,
 			self.get_depreciation_month_number(),
 			self.expected_revenue,
 			self.vehicle,
@@ -233,6 +243,7 @@ def get_route_details(
 	salaries=0,
 	active_vehicles=0,
 	vehicle_costs=0,
+	maintenance_costs=0,
 	depreciation_month_number=0,
 	expected_revenue=0,
 	vehicle=None,
@@ -283,6 +294,14 @@ def get_route_details(
 			quantity = total_distance
 			amount = 0
 			description = "Set tyre price and lifecycle on the Trip Simulation Tyres row"
+		elif expense_key == "maintenance fee":
+			rate = get_maintenance_fee_daily_rate(maintenance_costs)
+			quantity = flt(days_in_trip)
+			amount = rate * quantity
+			description = (
+				f"{format_formula_number(maintenance_costs)} / 3 months / 30 days "
+				f"x {format_formula_number(quantity)} trip days"
+			)
 		elif expense_meta.get("calculation_method") == "Per Trip Day":
 			quantity = flt(days_in_trip)
 			amount = rate * quantity
@@ -352,6 +371,7 @@ def get_route_expense_limits(route):
 			seen_expenses.add(expense_key)
 			expense_meta = get_fixed_expense_meta(expense)
 			limits[expense] = {
+				"expense": expense,
 				"amount": flt(row.amount),
 				"calculation_method": expense_meta.get("calculation_method"),
 				"percentage": flt(expense_meta.get("percentage")),
@@ -710,12 +730,16 @@ def get_allowed_expense_amount(
 	salaries=0,
 	active_vehicles=0,
 	vehicle_costs=0,
+	maintenance_costs=0,
 	depreciation_month_number=0,
 	expected_revenue=0,
 	percentage_override=None,
 	total_distance_km=0,
 	vehicle=None,
 ):
+	if normalize_expense_name(expense_limit.get("expense")) == "maintenance fee":
+		return get_maintenance_fee_daily_rate(maintenance_costs) * flt(days_in_trip)
+
 	amount = flt(expense_limit.get("amount"))
 	if expense_limit.get("calculation_method") == "Per Trip Day":
 		return amount * flt(days_in_trip)
@@ -747,6 +771,10 @@ def get_vehicle_depreciation_rate(vehicle_costs, month_number):
 		return 0
 
 	return flt(vehicle_costs) / month_number / 12 / 30
+
+
+def get_maintenance_fee_daily_rate(maintenance_costs):
+	return flt(maintenance_costs) / 3 / 30
 
 
 def get_vehicle_wheels(vehicle):

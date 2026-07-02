@@ -24,6 +24,7 @@
   "constants_section",
   "salaries",
   "depreciation",
+  "maintenance_costs",
   "column_break_fsri",
   "vehicle_costs",
   "active_vehicles",
@@ -265,6 +266,13 @@
    "label": "Depreciation",
    "non_negative": 1,
    "reqd": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "maintenance_costs",
+   "fieldtype": "Currency",
+   "label": "3 Months Maintenance Cost",
+   "non_negative": 1
   },
   {
    "fieldname": "column_break_fsri",
