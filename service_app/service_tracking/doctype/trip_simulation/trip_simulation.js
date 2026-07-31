@@ -13,6 +13,7 @@ frappe.ui.form.on("Trip Simulation", {
 
 	refresh(frm) {
 		frm._trip_simulation_refreshing = true;
+		update_trip_financial_dashboard(frm);
 
 		if (frm.doc.docstatus === 1) {
 			load_route_expense_limits(frm, { recalculate: false });
@@ -237,6 +238,92 @@ function calculate_totals(frm) {
 	set_value_if_changed(frm, "total_trip_cost", total_trip_cost);
 	set_value_if_changed(frm, "net_profit", net_profit);
 	set_value_if_changed(frm, "net_profit_", net_profit_margin);
+	update_trip_financial_dashboard(frm, {
+		expected_revenue,
+		total_trip_cost,
+		net_profit,
+		net_profit_margin,
+	});
+}
+
+function update_trip_financial_dashboard(frm, values = {}) {
+	if (!frm.dashboard) {
+		return;
+	}
+
+	const expected_revenue = flt(values.expected_revenue ?? frm.doc.expected_revenue);
+	const total_trip_cost = flt(values.total_trip_cost ?? frm.doc.total_trip_cost);
+	const net_profit = flt(values.net_profit ?? frm.doc.net_profit);
+	const net_profit_margin = flt(values.net_profit_margin ?? frm.doc.net_profit_);
+	const target_margin = flt(frm.doc.targeted_net_profit);
+	const cost_ratio = expected_revenue ? flt(total_trip_cost / expected_revenue * 100, 2) : 0;
+	const margin_color = net_profit_margin >= target_margin ? "green" : "red";
+	const profit_color = net_profit >= 0 ? "green" : "red";
+	const profit_label = net_profit >= 0 ? __("Profit") : __("Loss");
+	const margin_status = net_profit_margin >= target_margin ? __("On Target") : __("Below Target");
+
+	frm.dashboard.stats_area_row.empty();
+	frm.dashboard.add_indicator(`${__("Revenue")}: ${format_currency(expected_revenue)}`, "blue");
+	frm.dashboard.add_indicator(`${__("Total Cost")}: ${format_currency(total_trip_cost)}`, "orange");
+	frm.dashboard.add_indicator(`${profit_label}: ${format_currency(net_profit)}`, profit_color);
+	frm.dashboard.add_indicator(`${__("Margin")}: ${format_percentage_value(net_profit_margin)}`, margin_color);
+
+	frm.dashboard.parent.find(".trip-financial-dashboard").remove();
+	const cards = [
+		{
+			label: __("Revenue"),
+			value: format_currency(expected_revenue),
+			accent: "#2563eb",
+			subtitle: __("Expected trip income"),
+		},
+		{
+			label: __("Total Cost"),
+			value: format_currency(total_trip_cost),
+			accent: "#f97316",
+			subtitle: `${__("Cost Ratio")}: ${format_percentage_value(cost_ratio)}`,
+		},
+		{
+			label: profit_label,
+			value: format_currency(net_profit),
+			accent: net_profit >= 0 ? "#16a34a" : "#dc2626",
+			subtitle: __("Revenue less total trip cost"),
+		},
+		{
+			label: __("Net Margin"),
+			value: format_percentage_value(net_profit_margin),
+			accent: net_profit_margin >= target_margin ? "#16a34a" : "#dc2626",
+			subtitle: `${margin_status} | ${__("Target")}: ${format_percentage_value(target_margin)}`,
+		},
+	];
+
+	const card_html = cards.map((card) => `
+		<div style="
+			flex: 1 1 180px;
+			min-width: 180px;
+			border: 1px solid var(--border-color);
+			border-radius: 14px;
+			padding: 14px 16px;
+			background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+			box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+		">
+			<div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;">
+				<span style="width: 9px; height: 9px; border-radius: 999px; background: ${card.accent}; display: inline-block;"></span>
+				${card.label}
+			</div>
+			<div style="font-size: 24px; font-weight: 800; color: var(--text-color); margin-top: 8px; line-height: 1.15;">
+				${card.value}
+			</div>
+			<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+				${card.subtitle}
+			</div>
+		</div>
+	`).join("");
+
+	frm.dashboard.add_section(
+		`<div class="trip-financial-dashboard" style="display: flex; flex-wrap: wrap; gap: 12px;">${card_html}</div>`,
+		__("Trip Financial Snapshot"),
+		"custom trip-financial-dashboard"
+	);
 }
 
 function apply_calculated_expenses(frm) {
@@ -889,6 +976,13 @@ function get_depreciation_month_number(frm) {
 
 function format_formula_number(value) {
 	return flt(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function format_percentage_value(value) {
+	return `${flt(value).toLocaleString(undefined, {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	})}%`;
 }
 
 function show_payable_expenses_dialog(frm) {
