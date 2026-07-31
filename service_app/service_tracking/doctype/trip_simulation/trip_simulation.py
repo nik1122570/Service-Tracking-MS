@@ -4,15 +4,33 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import date_diff, flt, getdate, nowdate
+from frappe.utils import add_months, date_diff, flt, get_first_day, get_last_day, getdate, nowdate
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from service_app.service_tracking.expense_labels import canonical_expense_label, normalize_expense_name
+
+TRIP_SETTINGS_DEFAULTS = {
+	"management_fee_percentage": 3,
+	"salaries_percentage": 10,
+	"heavy_truck_vehicle_cost": 85000000,
+	"light_truck_vehicle_cost": 45000000,
+	"heavy_truck_tyre_price": 0,
+	"heavy_truck_number_of_tyres": 0,
+	"heavy_truck_tyre_lifecycle_km": 0,
+	"light_truck_tyre_price": 0,
+	"light_truck_number_of_tyres": 0,
+	"light_truck_tyre_lifecycle_km": 0,
+	"heavy_truck_litres_per_km": 0,
+	"light_truck_litres_per_km": 0,
+}
+
+PURCHASE_ORDER_JOB_CARD_LINK_FIELDS = ("custom_job_card_link", "eah_job_card", "job_card_link")
 
 
 class TripSimulation(Document):
 	def validate(self):
 		self.calculate_days_in_trip()
+		self.set_fuel_price_from_last_purchase_price()
 
 		if self.route and (
 			self.has_value_changed("route") or (not self.fuel and not self.trip_expenses_outline)
@@ -24,6 +42,11 @@ class TripSimulation(Document):
 			self.calculate_totals()
 
 		self.validate_targeted_net_profit()
+
+	def set_fuel_price_from_last_purchase_price(self):
+		fuel_price_details = get_last_fuel_purchase_price(self.fuel_item)
+		if flt(fuel_price_details.get("rate")):
+			self.fuel_price = flt(fuel_price_details.get("rate"))
 
 	def calculate_days_in_trip(self):
 		if not self.departure_date or not self.return_date:
@@ -87,13 +110,14 @@ class TripSimulation(Document):
 				self.days_in_trip,
 				self.salaries,
 				self.active_vehicles,
-				self.vehicle_costs,
-				self.maintenance_costs,
+				get_vehicle_cost_from_truck_type(self.vehicle),
+				0,
 				self.get_depreciation_month_number(),
 				self.expected_revenue,
 				row.quantity,
 				sum(flt(step.distance) for step in self.fuel),
 				self.vehicle,
+				self.departure_date or self.transaction_date,
 			)
 			if flt(row.amount) > max_amount:
 				frappe.throw(
@@ -111,6 +135,8 @@ class TripSimulation(Document):
 			return
 
 		route_expense_limits = get_route_expense_limits(self.route)
+		trip_settings = get_trip_settings()
+		tyre_settings = get_tyre_settings_from_truck_type(self.vehicle)
 		for row in self.trip_expenses_outline:
 			if not row.expense:
 				continue
@@ -118,16 +144,17 @@ class TripSimulation(Document):
 			row.expense = canonical_expense_label(row.expense)
 			if normalize_expense_name(row.expense) == "tyres":
 				row.rate = get_tyre_cost_per_km(
-					row.tyre_price,
-					row.number_of_tyres,
-					row.tyre_lifecycle_km,
+					tyre_settings.get("tyre_price"),
+					tyre_settings.get("number_of_tyres"),
+					tyre_settings.get("tyre_lifecycle_km"),
 				)
 				row.quantity = sum(flt(step.distance) for step in self.fuel)
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = (
-					f"{format_formula_number(row.tyre_price)} x "
-					f"{format_formula_number(row.number_of_tyres)} tyres / "
-					f"{format_formula_number(row.tyre_lifecycle_km)} km x "
+					f"{format_formula_number(tyre_settings.get('tyre_price'))} x "
+					f"{format_formula_number(tyre_settings.get('number_of_tyres'))} tyres / "
+					f"{format_formula_number(tyre_settings.get('tyre_lifecycle_km'))} km x "
 					f"{format_formula_number(row.quantity)} km"
 				)
 				continue
@@ -137,21 +164,45 @@ class TripSimulation(Document):
 
 			expense_limit = route_expense_limits[row.expense]
 			if normalize_expense_name(row.expense) == "maintenance fee":
-				row.rate = get_maintenance_fee_daily_rate(self.maintenance_costs)
+				maintenance_details = get_previous_month_maintenance_cost_details(
+					self.vehicle,
+					self.departure_date or self.transaction_date,
+				)
+				row.rate = get_maintenance_fee_daily_rate(maintenance_details.get("amount"))
 				row.quantity = self.days_in_trip or 0
+				row.previous_month_maintenance_cost = flt(maintenance_details.get("amount"))
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = (
-					f"{format_formula_number(self.maintenance_costs)} / 3 months / 30 days "
+					f"{format_formula_number(maintenance_details.get('amount'))} previous month maintenance "
+					f"({maintenance_details.get('from_date') or 'N/A'} to {maintenance_details.get('to_date') or 'N/A'}) / 30 days "
 					f"x {format_formula_number(row.quantity)} trip days"
+				)
+			elif normalize_expense_name(row.expense) == "management fee":
+				row.quantity = get_trip_setting_value(trip_settings, "management_fee_percentage")
+				row.rate = flt(self.expected_revenue) / 100
+				row.previous_month_maintenance_cost = 0
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(row.quantity)}% of {format_formula_number(self.expected_revenue)}"
+				)
+			elif normalize_expense_name(row.expense) == "salaries":
+				row.quantity = get_trip_setting_value(trip_settings, "salaries_percentage")
+				row.rate = flt(self.expected_revenue) / 100
+				row.previous_month_maintenance_cost = 0
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(row.quantity)}% of {format_formula_number(self.expected_revenue)}"
 				)
 			elif expense_limit.get("calculation_method") == "Per Trip Day":
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = self.days_in_trip or 0
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = f"{row.rate:g} x {flt(row.quantity):g} trip days"
 			elif expense_limit.get("calculation_method") == "Salary Allocation":
 				row.rate = get_salary_allocation_rate(self.salaries, self.active_vehicles)
 				row.quantity = self.days_in_trip or 0
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = (
 					f"{format_formula_number(self.salaries)} / 30 / {format_formula_number(self.active_vehicles)} "
@@ -159,16 +210,19 @@ class TripSimulation(Document):
 				)
 			elif expense_limit.get("calculation_method") == "Vehicle Depreciation":
 				month_number = self.get_depreciation_month_number()
-				row.rate = get_vehicle_depreciation_rate(self.vehicle_costs, month_number)
+				vehicle_cost = get_vehicle_cost_from_truck_type(self.vehicle)
+				row.rate = get_vehicle_depreciation_rate(vehicle_cost, month_number)
 				row.quantity = self.days_in_trip or 0
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = (
-					f"{format_formula_number(self.vehicle_costs)} / {format_formula_number(month_number)} / 12 / 30 "
+					f"{format_formula_number(vehicle_cost)} / {format_formula_number(month_number)} / 12 / 30 "
 					f"x {format_formula_number(row.quantity)} trip days"
 				)
 			elif expense_limit.get("calculation_method") == "Percentage of Expected Revenue":
 				row.quantity = flt(row.quantity)
 				row.rate = flt(self.expected_revenue) / 100
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate) * flt(row.quantity)
 				row.description = (
 					f"{format_formula_number(row.quantity)}% of {format_formula_number(self.expected_revenue)}"
@@ -176,6 +230,7 @@ class TripSimulation(Document):
 			else:
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = 1
+				row.previous_month_maintenance_cost = 0
 				row.amount = flt(row.rate)
 				row.description = "Fixed amount"
 
@@ -183,6 +238,7 @@ class TripSimulation(Document):
 		return get_depreciation_month_number(self.departure_date or self.transaction_date)
 
 	def calculate_totals(self):
+		self.apply_calculated_fuel_consumption()
 		self.total_distance_km = sum(flt(row.distance) for row in self.fuel)
 		self.total_fuel_consumption_qty_ratio = sum(flt(row.fuel_consumption_qty) for row in self.fuel)
 		self.total_fuel_costs = flt(self.total_fuel_consumption_qty_ratio) * flt(self.fuel_price)
@@ -195,6 +251,11 @@ class TripSimulation(Document):
 			self.net_profit,
 			expected_revenue,
 		)
+
+	def apply_calculated_fuel_consumption(self):
+		fuel_litres_per_km = get_fuel_litres_per_km_from_truck_type(self.vehicle)
+		for row in self.fuel:
+			row.fuel_consumption_qty = get_fuel_consumption_qty(row.distance, fuel_litres_per_km)
 
 	def validate_targeted_net_profit(self):
 		if flt(self.net_profit_) >= flt(self.targeted_net_profit):
@@ -214,11 +275,12 @@ class TripSimulation(Document):
 			self.days_in_trip,
 			self.salaries,
 			self.active_vehicles,
-			self.vehicle_costs,
-			self.maintenance_costs,
+			get_vehicle_cost_from_truck_type(self.vehicle),
+			0,
 			self.get_depreciation_month_number(),
 			self.expected_revenue,
 			self.vehicle,
+			self.departure_date or self.transaction_date,
 		)
 
 		self.set("fuel", [])
@@ -247,6 +309,7 @@ def get_route_details(
 	depreciation_month_number=0,
 	expected_revenue=0,
 	vehicle=None,
+	maintenance_reference_date=None,
 ):
 	if not route:
 		return {
@@ -254,6 +317,11 @@ def get_route_details(
 			"fixed_expenses": [],
 			"total_distance": 0,
 			"total_fuel_consumption_qty": 0,
+			"fuel_litres_per_km": get_fuel_litres_per_km_from_truck_type(vehicle),
+			"maintenance_details": get_previous_month_maintenance_cost_details(
+				vehicle,
+				maintenance_reference_date,
+			),
 		}
 
 	route_doc = frappe.get_doc("Simulation Routes", route)
@@ -266,12 +334,23 @@ def get_route_details(
 				"location": row.location,
 				"unloading_location": row.unloading_location,
 				"distance": flt(row.distance),
-				"fuel_consumption_qty": flt(row.fuel_consumption_qty),
+				"fuel_consumption_qty": get_fuel_consumption_qty(
+					row.distance,
+					get_fuel_litres_per_km_from_truck_type(vehicle),
+				),
 			}
 		)
 
 	total_distance = sum(flt(row.get("distance")) for row in trip_steps)
 	total_fuel_consumption_qty = sum(flt(row.get("fuel_consumption_qty")) for row in trip_steps)
+	trip_settings = get_trip_settings()
+	vehicle_costs = get_vehicle_cost_from_truck_type(vehicle)
+	tyre_settings = get_tyre_settings_from_truck_type(vehicle)
+	fuel_litres_per_km = get_fuel_litres_per_km_from_truck_type(vehicle)
+	maintenance_details = get_previous_month_maintenance_cost_details(
+		vehicle,
+		maintenance_reference_date,
+	)
 
 	seen_expenses = set()
 	for row in route_doc.fixed_expenses:
@@ -286,22 +365,41 @@ def get_route_details(
 		quantity = 1
 		amount = rate
 		description = f"Fetched from route {route_doc.name}"
-		vehicle_wheels = 0
 
 		if expense_key == "tyres":
-			vehicle_wheels = get_vehicle_wheels(vehicle)
-			rate = 0
+			rate = get_tyre_cost_per_km(
+				tyre_settings.get("tyre_price"),
+				tyre_settings.get("number_of_tyres"),
+				tyre_settings.get("tyre_lifecycle_km"),
+			)
 			quantity = total_distance
-			amount = 0
-			description = "Set tyre price and lifecycle on the Trip Simulation Tyres row"
-		elif expense_key == "maintenance fee":
-			rate = get_maintenance_fee_daily_rate(maintenance_costs)
-			quantity = flt(days_in_trip)
 			amount = rate * quantity
 			description = (
-				f"{format_formula_number(maintenance_costs)} / 3 months / 30 days "
+				f"{format_formula_number(tyre_settings.get('tyre_price'))} x "
+				f"{format_formula_number(tyre_settings.get('number_of_tyres'))} tyres / "
+				f"{format_formula_number(tyre_settings.get('tyre_lifecycle_km'))} km x "
+				f"{format_formula_number(quantity)} km"
+			)
+		elif expense_key == "maintenance fee":
+			rate = get_maintenance_fee_daily_rate(maintenance_details.get("amount"))
+			quantity = flt(days_in_trip)
+			amount = rate * quantity
+			previous_month_maintenance_cost = flt(maintenance_details.get("amount"))
+			description = (
+				f"{format_formula_number(maintenance_details.get('amount'))} previous month maintenance "
+				f"({maintenance_details.get('from_date') or 'N/A'} to {maintenance_details.get('to_date') or 'N/A'}) / 30 days "
 				f"x {format_formula_number(quantity)} trip days"
 			)
+		elif expense_key == "management fee":
+			quantity = get_trip_setting_value(trip_settings, "management_fee_percentage")
+			rate = flt(expected_revenue) / 100
+			amount = rate * quantity
+			description = f"{format_formula_number(quantity)}% of {format_formula_number(expected_revenue)}"
+		elif expense_key == "salaries":
+			quantity = get_trip_setting_value(trip_settings, "salaries_percentage")
+			rate = flt(expected_revenue) / 100
+			amount = rate * quantity
+			description = f"{format_formula_number(quantity)}% of {format_formula_number(expected_revenue)}"
 		elif expense_meta.get("calculation_method") == "Per Trip Day":
 			quantity = flt(days_in_trip)
 			amount = rate * quantity
@@ -334,8 +432,10 @@ def get_route_details(
 				"quantity": quantity,
 				"rate": rate,
 				"amount": amount,
+				"previous_month_maintenance_cost": previous_month_maintenance_cost
+				if expense_key == "maintenance fee"
+				else 0,
 				"description": description,
-				"number_of_tyres": vehicle_wheels,
 			}
 		)
 
@@ -344,6 +444,9 @@ def get_route_details(
 		"fixed_expenses": fixed_expenses,
 		"total_distance": total_distance,
 		"total_fuel_consumption_qty": total_fuel_consumption_qty,
+		"tyre_settings": tyre_settings,
+		"fuel_litres_per_km": fuel_litres_per_km,
+		"maintenance_details": maintenance_details,
 	}
 
 
@@ -724,6 +827,271 @@ def get_fixed_expense_meta(expense):
 	) or {}
 
 
+@frappe.whitelist()
+def get_trip_settings():
+	settings = {}
+	for fieldname, default_value in TRIP_SETTINGS_DEFAULTS.items():
+		try:
+			value = frappe.db.get_single_value("Trip Settings", fieldname)
+		except Exception:
+			value = None
+
+		settings[fieldname] = flt(value) if value not in (None, "") else default_value
+
+	return settings
+
+
+@frappe.whitelist()
+def get_vehicle_cost_from_truck_type(vehicle):
+	truck_type = get_vehicle_truck_type(vehicle)
+	if not truck_type:
+		return 0
+
+	truck_type_key = normalize_expense_name(truck_type)
+	settings = get_trip_settings()
+	if truck_type_key == "heavy truck":
+		return get_trip_setting_value(settings, "heavy_truck_vehicle_cost")
+	if truck_type_key == "light truck":
+		return get_trip_setting_value(settings, "light_truck_vehicle_cost")
+
+	return 0
+
+
+@frappe.whitelist()
+def get_tyre_settings_from_truck_type(vehicle):
+	truck_type = get_vehicle_truck_type(vehicle)
+	if not truck_type:
+		return {
+			"tyre_price": 0,
+			"number_of_tyres": 0,
+			"tyre_lifecycle_km": 0,
+		}
+
+	truck_type_key = normalize_expense_name(truck_type)
+	settings = get_trip_settings()
+	if truck_type_key == "heavy truck":
+		prefix = "heavy_truck"
+	elif truck_type_key == "light truck":
+		prefix = "light_truck"
+	else:
+		return {
+			"tyre_price": 0,
+			"number_of_tyres": 0,
+			"tyre_lifecycle_km": 0,
+		}
+
+	return {
+		"tyre_price": get_trip_setting_value(settings, f"{prefix}_tyre_price"),
+		"number_of_tyres": get_trip_setting_value(settings, f"{prefix}_number_of_tyres"),
+		"tyre_lifecycle_km": get_trip_setting_value(settings, f"{prefix}_tyre_lifecycle_km"),
+	}
+
+
+@frappe.whitelist()
+def get_fuel_litres_per_km_from_truck_type(vehicle):
+	truck_type = get_vehicle_truck_type(vehicle)
+	if not truck_type:
+		return 0
+
+	truck_type_key = normalize_expense_name(truck_type)
+	settings = get_trip_settings()
+	if truck_type_key == "heavy truck":
+		return get_trip_setting_value(settings, "heavy_truck_litres_per_km")
+	if truck_type_key == "light truck":
+		return get_trip_setting_value(settings, "light_truck_litres_per_km")
+
+	return 0
+
+
+@frappe.whitelist()
+def get_fuel_km_per_litre_from_truck_type(vehicle):
+	"""Backward-compatible alias for cached clients using the old method name."""
+	return get_fuel_litres_per_km_from_truck_type(vehicle)
+
+
+def get_vehicle_truck_type(vehicle):
+	if not vehicle:
+		return None
+
+	vehicle_meta = frappe.get_meta("Vehicle")
+	fieldnames = ["truck_type", "custom_truck_type"]
+	for df in vehicle_meta.fields:
+		if df.options == "Truck Type" or normalize_expense_name(df.label) == "truck type":
+			fieldnames.insert(0, df.fieldname)
+
+	for fieldname in dict.fromkeys(fieldnames):
+		if not vehicle_meta.has_field(fieldname):
+			continue
+
+		truck_type = frappe.db.get_value("Vehicle", vehicle, fieldname)
+		if truck_type:
+			return truck_type
+
+	return None
+
+
+def get_trip_setting_value(settings, fieldname):
+	default_value = TRIP_SETTINGS_DEFAULTS.get(fieldname, 0)
+	value = settings.get(fieldname) if settings else None
+	return flt(value) if value not in (None, "") else default_value
+
+
+def get_fuel_consumption_qty(distance, fuel_litres_per_km):
+	return flt(distance) * flt(fuel_litres_per_km)
+
+
+@frappe.whitelist()
+def get_last_fuel_purchase_price(fuel_item):
+	if not fuel_item:
+		return {
+			"rate": 0,
+			"source_doctype": None,
+			"source_name": None,
+			"posting_date": None,
+			"supplier": None,
+		}
+
+	purchase_invoice_rate = frappe.db.sql(
+		"""
+		SELECT
+			COALESCE(NULLIF(pii.base_net_rate, 0), NULLIF(pii.net_rate, 0), pii.rate, 0) AS rate,
+			pi.name AS source_name,
+			pi.posting_date,
+			pi.supplier
+		FROM `tabPurchase Invoice Item` pii
+		INNER JOIN `tabPurchase Invoice` pi
+			ON pi.name = pii.parent
+		WHERE pi.docstatus = 1
+		  AND pii.parenttype = 'Purchase Invoice'
+		  AND pii.item_code = %(fuel_item)s
+		ORDER BY pi.posting_date DESC, pi.creation DESC, pii.idx DESC
+		LIMIT 1
+		""",
+		{"fuel_item": fuel_item},
+		as_dict=True,
+	)
+	if purchase_invoice_rate:
+		return {
+			"rate": flt(purchase_invoice_rate[0].rate),
+			"source_doctype": "Purchase Invoice",
+			"source_name": purchase_invoice_rate[0].source_name,
+			"posting_date": purchase_invoice_rate[0].posting_date,
+			"supplier": purchase_invoice_rate[0].supplier,
+		}
+
+	purchase_order_rate = frappe.db.sql(
+		"""
+		SELECT
+			COALESCE(NULLIF(poi.base_net_rate, 0), NULLIF(poi.net_rate, 0), poi.rate, 0) AS rate,
+			po.name AS source_name,
+			po.transaction_date AS posting_date,
+			po.supplier
+		FROM `tabPurchase Order Item` poi
+		INNER JOIN `tabPurchase Order` po
+			ON po.name = poi.parent
+		WHERE po.docstatus = 1
+		  AND poi.parenttype = 'Purchase Order'
+		  AND poi.item_code = %(fuel_item)s
+		ORDER BY po.transaction_date DESC, po.creation DESC, poi.idx DESC
+		LIMIT 1
+		""",
+		{"fuel_item": fuel_item},
+		as_dict=True,
+	)
+	if purchase_order_rate:
+		return {
+			"rate": flt(purchase_order_rate[0].rate),
+			"source_doctype": "Purchase Order",
+			"source_name": purchase_order_rate[0].source_name,
+			"posting_date": purchase_order_rate[0].posting_date,
+			"supplier": purchase_order_rate[0].supplier,
+		}
+
+	return {
+		"rate": 0,
+		"source_doctype": None,
+		"source_name": None,
+		"posting_date": None,
+		"supplier": None,
+	}
+
+
+@frappe.whitelist()
+def get_previous_month_maintenance_cost_details(vehicle, reference_date=None):
+	if not vehicle:
+		return {
+			"amount": 0,
+			"from_date": None,
+			"to_date": None,
+		}
+
+	from_date, to_date = get_previous_month_date_range(reference_date)
+	po_job_card_link_expression = get_purchase_order_job_card_link_expression()
+	if not po_job_card_link_expression:
+		return {
+			"amount": 0,
+			"from_date": from_date,
+			"to_date": to_date,
+		}
+
+	amount = frappe.db.sql(
+		f"""
+		SELECT COALESCE(SUM(pii.base_net_amount), 0)
+		FROM `tabPurchase Invoice Item` pii
+		INNER JOIN `tabPurchase Invoice` pi
+			ON pi.name = pii.parent
+		INNER JOIN `tabPurchase Order` po
+			ON po.name = pii.purchase_order
+		INNER JOIN `tabEAH Job Card` jc
+			ON jc.name = {po_job_card_link_expression}
+		WHERE pi.docstatus = 1
+		  AND pii.parenttype = 'Purchase Invoice'
+		  AND COALESCE(pii.purchase_order, '') != ''
+		  AND jc.vehicle = %(vehicle)s
+		  AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s
+		""",
+		{
+			"vehicle": vehicle,
+			"from_date": from_date,
+			"to_date": to_date,
+		},
+	)[0][0] or 0
+
+	return {
+		"amount": flt(amount),
+		"from_date": from_date,
+		"to_date": to_date,
+	}
+
+
+def get_previous_month_date_range(reference_date=None):
+	reference_date = getdate(reference_date or nowdate())
+	previous_month_date = add_months(reference_date, -1)
+	return get_first_day(previous_month_date), get_last_day(previous_month_date)
+
+
+def get_purchase_order_job_card_link_expression():
+	link_fields = get_existing_table_columns("Purchase Order", PURCHASE_ORDER_JOB_CARD_LINK_FIELDS)
+	if not link_fields:
+		return ""
+
+	return "COALESCE({0})".format(
+		", ".join(f"NULLIF(po.`{fieldname}`, '')" for fieldname in link_fields)
+	)
+
+
+def get_existing_table_columns(doctype, candidate_fields):
+	if not frappe.db.exists("DocType", doctype):
+		return []
+
+	try:
+		columns = set(frappe.db.get_table_columns(doctype))
+	except Exception:
+		return []
+
+	return [fieldname for fieldname in candidate_fields if fieldname in columns]
+
+
 def get_allowed_expense_amount(
 	expense_limit,
 	days_in_trip,
@@ -736,9 +1104,24 @@ def get_allowed_expense_amount(
 	percentage_override=None,
 	total_distance_km=0,
 	vehicle=None,
+	maintenance_reference_date=None,
 ):
 	if normalize_expense_name(expense_limit.get("expense")) == "maintenance fee":
-		return get_maintenance_fee_daily_rate(maintenance_costs) * flt(days_in_trip)
+		maintenance_details = get_previous_month_maintenance_cost_details(
+			vehicle,
+			maintenance_reference_date,
+		)
+		return get_maintenance_fee_daily_rate(maintenance_details.get("amount")) * flt(days_in_trip)
+	if normalize_expense_name(expense_limit.get("expense")) == "management fee":
+		return flt(expected_revenue) * get_trip_setting_value(
+			get_trip_settings(),
+			"management_fee_percentage",
+		) / 100
+	if normalize_expense_name(expense_limit.get("expense")) == "salaries":
+		return flt(expected_revenue) * get_trip_setting_value(
+			get_trip_settings(),
+			"salaries_percentage",
+		) / 100
 
 	amount = flt(expense_limit.get("amount"))
 	if expense_limit.get("calculation_method") == "Per Trip Day":
@@ -774,14 +1157,7 @@ def get_vehicle_depreciation_rate(vehicle_costs, month_number):
 
 
 def get_maintenance_fee_daily_rate(maintenance_costs):
-	return flt(maintenance_costs) / 3 / 30
-
-
-def get_vehicle_wheels(vehicle):
-	if not vehicle:
-		return 0
-
-	return flt(frappe.db.get_value("Vehicle", vehicle, "wheels"))
+	return flt(maintenance_costs) / 30
 
 
 def get_tyre_cost_per_km(tyre_price, vehicle_wheels, tyre_lifecycle_km):

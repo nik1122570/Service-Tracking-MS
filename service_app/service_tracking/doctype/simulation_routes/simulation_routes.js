@@ -56,12 +56,9 @@ function calculate_route_totals(frm) {
 	const total_distance = (frm.doc.trip_steps || []).reduce((total, row) => {
 		return total + flt(row.distance);
 	}, 0);
-	const total_fuel_consumption_qty = (frm.doc.trip_steps || []).reduce((total, row) => {
-		return total + flt(row.fuel_consumption_qty);
-	}, 0);
 
 	set_value_if_changed(frm, "total_distance", total_distance);
-	set_value_if_changed(frm, "total_fuel_consumption_qty", total_fuel_consumption_qty);
+	set_value_if_changed(frm, "total_fuel_consumption_qty", 0);
 }
 
 function ensure_permanent_fixed_expenses(frm) {

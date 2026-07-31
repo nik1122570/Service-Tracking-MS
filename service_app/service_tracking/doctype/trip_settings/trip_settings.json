@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-31 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "expense_percentages_section",
+  "management_fee_percentage",
+  "salaries_percentage",
+  "vehicle_costs_section",
+  "heavy_truck_vehicle_cost",
+  "light_truck_vehicle_cost",
+  "tyres_section",
+  "heavy_truck_tyre_price",
+  "heavy_truck_number_of_tyres",
+  "heavy_truck_tyre_lifecycle_km",
+  "light_truck_tyre_price",
+  "light_truck_number_of_tyres",
+  "light_truck_tyre_lifecycle_km",
+  "fuel_consumption_section",
+  "heavy_truck_litres_per_km",
+  "light_truck_litres_per_km"
+ ],
+ "fields": [
+  {
+   "fieldname": "expense_percentages_section",
+   "fieldtype": "Section Break",
+   "label": "Expense Percentages"
+  },
+  {
+   "default": "3",
+   "description": "Used by Trip Simulation to calculate Management Fee as a percentage of Expected Revenue.",
+   "fieldname": "management_fee_percentage",
+   "fieldtype": "Percent",
+   "label": "Management Fee Percentage"
+  },
+  {
+   "default": "10",
+   "description": "Used by Trip Simulation to calculate Salaries as a percentage of Expected Revenue.",
+   "fieldname": "salaries_percentage",
+   "fieldtype": "Percent",
+   "label": "Salaries Percentage"
+  },
+  {
+   "fieldname": "vehicle_costs_section",
+   "fieldtype": "Section Break",
+   "label": "Vehicle Costs"
+  },
+  {
+   "default": "85000000",
+   "description": "Used by Trip Simulation depreciation when the selected Vehicle truck type is Heavy Truck.",
+   "fieldname": "heavy_truck_vehicle_cost",
+   "fieldtype": "Currency",
+   "label": "Heavy Truck Vehicle Cost",
+   "non_negative": 1
+  },
+  {
+   "default": "45000000",
+   "description": "Used by Trip Simulation depreciation when the selected Vehicle truck type is Light Truck.",
+   "fieldname": "light_truck_vehicle_cost",
+   "fieldtype": "Currency",
+   "label": "Light Truck Vehicle Cost",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "tyres_section",
+   "fieldtype": "Section Break",
+   "label": "Tyres"
+  },
+  {
+   "default": "0",
+   "description": "Price of one tyre for Heavy Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "heavy_truck_tyre_price",
+   "fieldtype": "Currency",
+   "label": "Heavy Truck Tyre Price",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Number of tyres for Heavy Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "heavy_truck_number_of_tyres",
+   "fieldtype": "Float",
+   "label": "Heavy Truck Number of Tyres",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Tyre lifecycle in kilometers for Heavy Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "heavy_truck_tyre_lifecycle_km",
+   "fieldtype": "Float",
+   "label": "Heavy Truck Tyre Lifecycle (km)",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Price of one tyre for Light Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "light_truck_tyre_price",
+   "fieldtype": "Currency",
+   "label": "Light Truck Tyre Price",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Number of tyres for Light Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "light_truck_number_of_tyres",
+   "fieldtype": "Float",
+   "label": "Light Truck Number of Tyres",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Tyre lifecycle in kilometers for Light Trucks. Used by Trip Simulation Tyres formula.",
+   "fieldname": "light_truck_tyre_lifecycle_km",
+   "fieldtype": "Float",
+   "label": "Light Truck Tyre Lifecycle (km)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "fuel_consumption_section",
+   "fieldtype": "Section Break",
+   "label": "Fuel Consumption"
+  },
+  {
+   "default": "0",
+   "description": "Litres consumed per kilometer for Heavy Trucks. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "heavy_truck_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Heavy Truck Litres per KM",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Litres consumed per kilometer for Light Trucks. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "light_truck_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Light Truck Litres per KM",
+   "non_negative": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

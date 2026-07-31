@@ -84,6 +84,7 @@
   {
    "fieldname": "total_fuel_consumption_qty",
    "fieldtype": "Float",
+   "hidden": 1,
    "label": "Total Fuel Consumption Qty (Ltr)",
    "read_only": 1
   },

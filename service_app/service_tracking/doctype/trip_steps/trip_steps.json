@@ -30,7 +30,8 @@
    "fieldname": "fuel_consumption_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Fuel Ratio Consumption Qty"
+   "label": "Fuel Consumption Qty (Ltr)",
+   "read_only": 1
   },
   {
    "fieldname": "unloading_location",

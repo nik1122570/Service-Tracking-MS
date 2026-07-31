@@ -55,7 +55,7 @@ class SimulationRoutes(Document):
 
 	def calculate_route_totals(self):
 		self.total_distance = sum(flt(row.distance) for row in self.trip_steps)
-		self.total_fuel_consumption_qty = sum(flt(row.fuel_consumption_qty) for row in self.trip_steps)
+		self.total_fuel_consumption_qty = 0
 
 	def validate_duplicate_fixed_expenses(self):
 		seen_expenses = set()

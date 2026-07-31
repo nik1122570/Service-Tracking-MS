@@ -16,10 +16,8 @@ def execute():
 			"quantity",
 			"rate",
 			"amount",
+			"previous_month_maintenance_cost",
 			"description",
-			"tyre_price",
-			"number_of_tyres",
-			"tyre_lifecycle_km",
 			"purchase_order",
 		),
 	)

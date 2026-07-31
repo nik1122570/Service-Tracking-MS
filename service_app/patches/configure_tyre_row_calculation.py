@@ -29,7 +29,6 @@ def execute():
 
 	for trip_name in frappe.get_all("Trip Simulation", pluck="name"):
 		doc = frappe.get_doc("Trip Simulation", trip_name)
-		vehicle_wheels = frappe.db.get_value("Vehicle", doc.vehicle, "wheels") if doc.vehicle else 0
 		updated = False
 
 		for row in doc.trip_expenses_outline:
@@ -43,8 +42,7 @@ def execute():
 					"quantity": doc.total_distance_km,
 					"rate": 0,
 					"amount": 0,
-					"description": "Set tyre price, number of tyres, and tyre lifecycle on this row",
-					"number_of_tyres": vehicle_wheels or 0,
+					"description": "Tyres are calculated from Trip Settings based on Vehicle Truck Type",
 				},
 				update_modified=False,
 			)

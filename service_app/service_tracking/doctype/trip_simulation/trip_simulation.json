@@ -24,9 +24,7 @@
   "constants_section",
   "salaries",
   "depreciation",
-  "maintenance_costs",
   "column_break_fsri",
-  "vehicle_costs",
   "active_vehicles",
   "trip_expenses_tab",
   "fuel_costs_section",
@@ -149,6 +147,7 @@
    "fieldtype": "Currency",
    "label": "Fuel Price",
    "non_negative": 1,
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -225,8 +224,8 @@
   {
    "allow_on_submit": 1,
    "fieldname": "total_fuel_consumption_qty_ratio",
-   "fieldtype": "Int",
-   "label": "Total Fuel Consumption Ratio",
+   "fieldtype": "Float",
+   "label": "Total Fuel Used (Ltr)",
    "read_only": 1
   },
   {
@@ -242,9 +241,9 @@
   {
    "fieldname": "salaries",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Salaries",
-   "non_negative": 1,
-   "reqd": 1
+   "non_negative": 1
   },
   {
    "fieldname": "active_vehicles",
@@ -254,25 +253,11 @@
    "reqd": 1
   },
   {
-   "fieldname": "vehicle_costs",
-   "fieldtype": "Currency",
-   "label": "Vehicle Costs",
-   "non_negative": 1,
-   "reqd": 1
-  },
-  {
    "fieldname": "depreciation",
    "fieldtype": "Currency",
    "label": "Depreciation",
    "non_negative": 1,
    "reqd": 1
-  },
-  {
-   "allow_on_submit": 1,
-   "fieldname": "maintenance_costs",
-   "fieldtype": "Currency",
-   "label": "3 Months Maintenance Cost",
-   "non_negative": 1
   },
   {
    "fieldname": "column_break_fsri",

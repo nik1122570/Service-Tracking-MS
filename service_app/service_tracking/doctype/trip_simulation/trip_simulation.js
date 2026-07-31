@@ -4,6 +4,11 @@
 frappe.ui.form.on("Trip Simulation", {
 	onload(frm) {
 		frm._trip_simulation_refreshing = true;
+		frm._trip_settings = get_default_trip_settings();
+		frm._tyre_settings = get_default_tyre_settings();
+		frm._fuel_litres_per_km = 0;
+		frm._maintenance_details = get_default_maintenance_details();
+		load_trip_settings(frm);
 	},
 
 	refresh(frm) {
@@ -19,12 +24,21 @@ frappe.ui.form.on("Trip Simulation", {
 		if (frm.is_new()) {
 			calculate_days_in_trip(frm);
 			load_route_expense_limits(frm);
-			load_vehicle_wheels(frm);
+			load_vehicle_cost_from_truck_type(frm);
+			load_tyre_settings_from_truck_type(frm);
+			load_fuel_litres_per_km_from_truck_type(frm);
+			load_previous_month_maintenance_cost(frm);
+			load_last_fuel_purchase_price(frm);
 			release_refresh_guard(frm);
 			return;
 		}
 
 		load_route_expense_limits(frm, { recalculate: false });
+		load_vehicle_cost_from_truck_type(frm, { recalculate: false });
+		load_tyre_settings_from_truck_type(frm, { recalculate: false });
+		load_fuel_litres_per_km_from_truck_type(frm, { recalculate: false });
+		load_previous_month_maintenance_cost(frm, { recalculate: false });
+		load_last_fuel_purchase_price(frm, { recalculate: false });
 		release_refresh_guard(frm);
 	},
 
@@ -55,14 +69,16 @@ frappe.ui.form.on("Trip Simulation", {
 				days_in_trip: frm.doc.days_in_trip || 0,
 				salaries: frm.doc.salaries || 0,
 				active_vehicles: frm.doc.active_vehicles || 0,
-				vehicle_costs: frm.doc.vehicle_costs || 0,
-				maintenance_costs: frm.doc.maintenance_costs || 0,
 				depreciation_month_number: get_depreciation_month_number(frm),
 				expected_revenue: frm.doc.expected_revenue || 0,
 				vehicle: frm.doc.vehicle,
+				maintenance_reference_date: get_maintenance_reference_date(frm),
 			},
 			callback(response) {
 				const route_details = response.message || {};
+				frm._tyre_settings = Object.assign(get_default_tyre_settings(), route_details.tyre_settings || {});
+				frm._fuel_litres_per_km = flt(route_details.fuel_litres_per_km);
+				frm._maintenance_details = Object.assign(get_default_maintenance_details(), route_details.maintenance_details || {});
 				frm.clear_table("fuel");
 				frm.clear_table("trip_expenses_outline");
 
@@ -74,14 +90,14 @@ frappe.ui.form.on("Trip Simulation", {
 					row.fuel_consumption_qty = step.fuel_consumption_qty;
 				});
 
-					(route_details.fixed_expenses || []).forEach((expense) => {
-						const row = frm.add_child("trip_expenses_outline");
-						row.expense = canonical_expense_label(expense.expense);
-						row.quantity = expense.quantity;
-						row.rate = expense.rate;
-						row.amount = expense.amount;
+				(route_details.fixed_expenses || []).forEach((expense) => {
+					const row = frm.add_child("trip_expenses_outline");
+					row.expense = canonical_expense_label(expense.expense);
+					row.quantity = expense.quantity;
+					row.rate = expense.rate;
+					row.amount = expense.amount;
+					row.previous_month_maintenance_cost = expense.previous_month_maintenance_cost;
 					row.description = expense.description;
-					row.number_of_tyres = expense.number_of_tyres;
 				});
 
 				calculate_totals(frm);
@@ -98,6 +114,7 @@ frappe.ui.form.on("Trip Simulation", {
 
 	departure_date(frm) {
 		calculate_days_in_trip(frm);
+		load_previous_month_maintenance_cost(frm);
 		apply_calculated_expenses(frm);
 		calculate_totals(frm);
 	},
@@ -109,12 +126,17 @@ frappe.ui.form.on("Trip Simulation", {
 	},
 
 	transaction_date(frm) {
+		load_previous_month_maintenance_cost(frm);
 		apply_calculated_expenses(frm);
 		calculate_totals(frm);
 	},
 
 	fuel_price(frm) {
 		calculate_totals(frm);
+	},
+
+	fuel_item(frm) {
+		load_last_fuel_purchase_price(frm);
 	},
 
 	create_fuel_purchase_order(frm) {
@@ -131,30 +153,25 @@ frappe.ui.form.on("Trip Simulation", {
 		calculate_totals(frm);
 	},
 
-	vehicle_costs(frm) {
-		apply_calculated_expenses(frm);
-		calculate_totals(frm);
-	},
-
-	maintenance_costs(frm) {
-		apply_calculated_expenses(frm);
-		calculate_totals(frm);
-	},
-
 	vehicle(frm) {
-		load_vehicle_wheels(frm);
+		load_vehicle_cost_from_truck_type(frm);
+		load_tyre_settings_from_truck_type(frm);
+		load_fuel_litres_per_km_from_truck_type(frm);
+		load_previous_month_maintenance_cost(frm);
 	},
 });
 
 frappe.ui.form.on("Trip Steps", {
 	distance(frm) {
 		if (frm.doctype === "Trip Simulation") {
+			apply_calculated_fuel_consumption(frm);
 			calculate_totals(frm);
 		}
 	},
 
 	fuel_consumption_qty(frm) {
 		if (frm.doctype === "Trip Simulation") {
+			apply_calculated_fuel_consumption(frm);
 			calculate_totals(frm);
 		}
 	},
@@ -177,18 +194,6 @@ frappe.ui.form.on("Trip Simulation Table", {
 		calculate_totals(frm);
 	},
 
-	tyre_price(frm) {
-		calculate_totals(frm);
-	},
-
-	number_of_tyres(frm) {
-		calculate_totals(frm);
-	},
-
-	tyre_lifecycle_km(frm) {
-		calculate_totals(frm);
-	},
-
 	amount(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		validate_row_amount(frm, row);
@@ -208,6 +213,7 @@ function calculate_totals(frm) {
 	const total_distance = (frm.doc.fuel || []).reduce((total, row) => {
 		return total + flt(row.distance);
 	}, 0);
+	apply_calculated_fuel_consumption(frm);
 	apply_calculated_expenses(frm);
 
 	const total_fuel_consumption_qty = (frm.doc.fuel || []).reduce((total, row) => {
@@ -249,13 +255,19 @@ function apply_calculated_expenses(frm) {
 		}
 
 		if (normalize_expense_name(row.expense) === "tyres") {
-			const rate = get_tyre_cost_per_km(row.tyre_price, row.number_of_tyres, row.tyre_lifecycle_km);
+			const tyre_settings = get_tyre_settings(frm);
+			const rate = get_tyre_cost_per_km(
+				tyre_settings.tyre_price,
+				tyre_settings.number_of_tyres,
+				tyre_settings.tyre_lifecycle_km
+			);
 			const quantity = (frm.doc.fuel || []).reduce((total, step) => total + flt(step.distance), 0);
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate) * flt(quantity),
-				description: `${format_formula_number(row.tyre_price)} x ${format_formula_number(row.number_of_tyres)} tyres / ${format_formula_number(row.tyre_lifecycle_km)} km x ${format_formula_number(quantity)} km`,
+				description: `${format_formula_number(tyre_settings.tyre_price)} x ${format_formula_number(tyre_settings.number_of_tyres)} tyres / ${format_formula_number(tyre_settings.tyre_lifecycle_km)} km x ${format_formula_number(quantity)} km`,
 			}) || changed;
 			return;
 		}
@@ -268,11 +280,33 @@ function apply_calculated_expenses(frm) {
 		if (normalize_expense_name(row.expense) === "maintenance fee") {
 			const rate = get_maintenance_fee_daily_rate(frm);
 			const quantity = flt(frm.doc.days_in_trip);
+			const maintenance_details = get_maintenance_details(frm);
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity,
+				previous_month_maintenance_cost: flt(maintenance_details.amount),
 				amount: flt(rate) * flt(quantity),
-				description: `${format_formula_number(frm.doc.maintenance_costs)} / 3 months / 30 days x ${format_formula_number(quantity)} trip days`,
+				description: `${format_formula_number(maintenance_details.amount)} previous month maintenance (${maintenance_details.from_date || "N/A"} to ${maintenance_details.to_date || "N/A"}) / 30 days x ${format_formula_number(quantity)} trip days`,
+			}) || changed;
+		} else if (normalize_expense_name(row.expense) === "management fee") {
+			const quantity = get_trip_setting_value(frm, "management_fee_percentage");
+			const rate = flt(frm.doc.expected_revenue) / 100;
+			changed = update_row_if_changed(row, {
+				quantity,
+				rate,
+				previous_month_maintenance_cost: 0,
+				amount: flt(rate) * flt(quantity),
+				description: `${format_formula_number(quantity)}% of ${format_formula_number(frm.doc.expected_revenue)}`,
+			}) || changed;
+		} else if (normalize_expense_name(row.expense) === "salaries") {
+			const quantity = get_trip_setting_value(frm, "salaries_percentage");
+			const rate = flt(frm.doc.expected_revenue) / 100;
+			changed = update_row_if_changed(row, {
+				quantity,
+				rate,
+				previous_month_maintenance_cost: 0,
+				amount: flt(rate) * flt(quantity),
+				description: `${format_formula_number(quantity)}% of ${format_formula_number(frm.doc.expected_revenue)}`,
 			}) || changed;
 		} else if (expense_limit.calculation_method === "Per Trip Day") {
 			const rate = flt(expense_limit.amount);
@@ -280,6 +314,7 @@ function apply_calculated_expenses(frm) {
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate) * flt(quantity),
 				description: `${rate} x ${quantity} trip days`,
 			}) || changed;
@@ -289,18 +324,21 @@ function apply_calculated_expenses(frm) {
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate) * flt(quantity),
 				description: `${format_formula_number(frm.doc.salaries)} / 30 / ${format_formula_number(frm.doc.active_vehicles)} x ${format_formula_number(quantity)} trip days`,
 			}) || changed;
 		} else if (expense_limit.calculation_method === "Vehicle Depreciation") {
 			const month_number = get_depreciation_month_number(frm);
+			const vehicle_cost = get_vehicle_cost(frm);
 			const rate = get_vehicle_depreciation_rate(frm, month_number);
 			const quantity = flt(frm.doc.days_in_trip);
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate) * flt(quantity),
-				description: `${format_formula_number(frm.doc.vehicle_costs)} / ${format_formula_number(month_number)} / 12 / 30 x ${format_formula_number(quantity)} trip days`,
+				description: `${format_formula_number(vehicle_cost)} / ${format_formula_number(month_number)} / 12 / 30 x ${format_formula_number(quantity)} trip days`,
 			}) || changed;
 		} else if (expense_limit.calculation_method === "Percentage of Expected Revenue") {
 			const quantity = flt(row.quantity);
@@ -308,6 +346,7 @@ function apply_calculated_expenses(frm) {
 			changed = update_row_if_changed(row, {
 				quantity,
 				rate,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate) * flt(quantity),
 				description: `${format_formula_number(quantity)}% of ${format_formula_number(frm.doc.expected_revenue)}`,
 			}) || changed;
@@ -316,6 +355,7 @@ function apply_calculated_expenses(frm) {
 			changed = update_row_if_changed(row, {
 				rate,
 				quantity: 1,
+				previous_month_maintenance_cost: 0,
 				amount: flt(rate),
 				description: __("Fixed amount"),
 			}) || changed;
@@ -457,6 +497,12 @@ function get_allowed_expense_amount(expense_limit, frm, percentage_override = nu
 	if (normalize_expense_name(expense_limit.expense) === "maintenance fee") {
 		return get_maintenance_fee_daily_rate(frm) * flt(frm.doc.days_in_trip);
 	}
+	if (normalize_expense_name(expense_limit.expense) === "management fee") {
+		return flt(frm.doc.expected_revenue) * get_trip_setting_value(frm, "management_fee_percentage") / 100;
+	}
+	if (normalize_expense_name(expense_limit.expense) === "salaries") {
+		return flt(frm.doc.expected_revenue) * get_trip_setting_value(frm, "salaries_percentage") / 100;
+	}
 
 	const amount = flt(expense_limit.amount);
 	if (expense_limit.calculation_method === "Per Trip Day") {
@@ -492,11 +538,114 @@ function get_vehicle_depreciation_rate(frm, month_number) {
 		return 0;
 	}
 
-	return flt(frm.doc.vehicle_costs) / month_number / 12 / 30;
+	return get_vehicle_cost(frm) / month_number / 12 / 30;
 }
 
 function get_maintenance_fee_daily_rate(frm) {
-	return flt(frm.doc.maintenance_costs) / 3 / 30;
+	return flt(get_maintenance_details(frm).amount) / 30;
+}
+
+function get_default_trip_settings() {
+	return {
+		management_fee_percentage: 3,
+		salaries_percentage: 10,
+		heavy_truck_vehicle_cost: 85000000,
+		light_truck_vehicle_cost: 45000000,
+		heavy_truck_tyre_price: 0,
+		heavy_truck_number_of_tyres: 0,
+			heavy_truck_tyre_lifecycle_km: 0,
+			light_truck_tyre_price: 0,
+			light_truck_number_of_tyres: 0,
+			light_truck_tyre_lifecycle_km: 0,
+			heavy_truck_litres_per_km: 0,
+			light_truck_litres_per_km: 0,
+	};
+}
+
+function load_trip_settings(frm) {
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_trip_settings",
+		callback(response) {
+			frm._trip_settings = Object.assign(get_default_trip_settings(), response.message || {});
+			if (!should_recalculate(frm)) {
+				return;
+			}
+
+			apply_calculated_expenses(frm);
+			calculate_totals(frm);
+			validate_trip_expenses(frm);
+		},
+	});
+}
+
+function get_trip_setting_value(frm, fieldname) {
+	const settings = frm._trip_settings || get_default_trip_settings();
+	const value = settings[fieldname];
+	if (value === undefined || value === null || value === "") {
+		return flt(get_default_trip_settings()[fieldname]);
+	}
+
+	return flt(value);
+}
+
+function get_vehicle_cost(frm) {
+	return flt(frm._vehicle_cost);
+}
+
+function get_default_tyre_settings() {
+	return {
+		tyre_price: 0,
+		number_of_tyres: 0,
+		tyre_lifecycle_km: 0,
+	};
+}
+
+function get_tyre_settings(frm) {
+	return Object.assign(get_default_tyre_settings(), frm._tyre_settings || {});
+}
+
+function get_default_maintenance_details() {
+	return {
+		amount: 0,
+		from_date: null,
+		to_date: null,
+	};
+}
+
+function get_maintenance_details(frm) {
+	return Object.assign(get_default_maintenance_details(), frm._maintenance_details || {});
+}
+
+function get_maintenance_reference_date(frm) {
+	return frm.doc.departure_date || frm.doc.transaction_date || frappe.datetime.get_today();
+}
+
+function get_fuel_litres_per_km(frm) {
+	return flt(frm._fuel_litres_per_km);
+}
+
+function get_fuel_consumption_qty(distance, fuel_litres_per_km) {
+	return flt(distance) * flt(fuel_litres_per_km);
+}
+
+function apply_calculated_fuel_consumption(frm) {
+	if (!should_recalculate(frm)) {
+		return;
+	}
+
+	const fuel_litres_per_km = get_fuel_litres_per_km(frm);
+	let changed = false;
+	(frm.doc.fuel || []).forEach((row) => {
+		const fuel_consumption_qty = get_fuel_consumption_qty(row.distance, fuel_litres_per_km);
+		if (flt(row.fuel_consumption_qty) !== flt(fuel_consumption_qty)) {
+			row.fuel_consumption_qty = fuel_consumption_qty;
+			changed = true;
+		}
+	});
+
+	if (changed) {
+		frm.refresh_field("fuel");
+	}
 }
 
 function get_tyre_cost_per_km(tyre_price, vehicle_wheels, tyre_lifecycle_km) {
@@ -530,9 +679,7 @@ function update_row_if_changed(row, values) {
 		"quantity",
 		"rate",
 		"amount",
-		"tyre_price",
-		"number_of_tyres",
-		"tyre_lifecycle_km",
+		"previous_month_maintenance_cost",
 		"exchange_rate",
 		"base_amount",
 	]);
@@ -556,27 +703,159 @@ function set_value_if_changed(frm, fieldname, value) {
 	}
 }
 
-function load_vehicle_wheels(frm) {
-	if (!should_recalculate(frm)) {
+function load_tyre_settings_from_truck_type(frm, options = {}) {
+	const recalculate = options.recalculate !== false;
+	if (recalculate && !should_recalculate(frm)) {
 		return;
 	}
 
 	if (!frm.doc.vehicle) {
-		frm._vehicle_wheels = 0;
-		apply_calculated_expenses(frm);
-		calculate_totals(frm);
+		frm._tyre_settings = get_default_tyre_settings();
+		if (recalculate && should_recalculate(frm)) {
+			apply_calculated_expenses(frm);
+			calculate_totals(frm);
+		}
 		return;
 	}
 
-	frappe.db.get_value("Vehicle", frm.doc.vehicle, "wheels").then((response) => {
-			frm._vehicle_wheels = flt(response.message?.wheels);
-			(frm.doc.trip_expenses_outline || []).forEach((row) => {
-				if (normalize_expense_name(row.expense) === "tyres" && !flt(row.number_of_tyres)) {
-					row.number_of_tyres = frm._vehicle_wheels;
-				}
-			});
-		apply_calculated_expenses(frm);
-		calculate_totals(frm);
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_tyre_settings_from_truck_type",
+		args: {
+			vehicle: frm.doc.vehicle,
+		},
+		callback(response) {
+			frm._tyre_settings = Object.assign(get_default_tyre_settings(), response.message || {});
+			if (recalculate && should_recalculate(frm)) {
+				apply_calculated_expenses(frm);
+				calculate_totals(frm);
+			}
+		},
+	});
+}
+
+function load_vehicle_cost_from_truck_type(frm, options = {}) {
+	const recalculate = options.recalculate !== false;
+	if (recalculate && !should_recalculate(frm)) {
+		return;
+	}
+
+	if (!frm.doc.vehicle) {
+		frm._vehicle_cost = 0;
+		if (recalculate && should_recalculate(frm)) {
+			apply_calculated_expenses(frm);
+			calculate_totals(frm);
+		}
+		return;
+	}
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_vehicle_cost_from_truck_type",
+		args: {
+			vehicle: frm.doc.vehicle,
+		},
+		callback(response) {
+			const vehicle_cost = flt(response.message);
+			frm._vehicle_cost = vehicle_cost;
+			if (recalculate && should_recalculate(frm)) {
+				apply_calculated_expenses(frm);
+				calculate_totals(frm);
+			}
+		},
+	});
+}
+
+function load_fuel_litres_per_km_from_truck_type(frm, options = {}) {
+	const recalculate = options.recalculate !== false;
+	if (recalculate && !should_recalculate(frm)) {
+		return;
+	}
+
+	if (!frm.doc.vehicle) {
+		frm._fuel_litres_per_km = 0;
+		if (recalculate && should_recalculate(frm)) {
+			apply_calculated_fuel_consumption(frm);
+			calculate_totals(frm);
+		}
+		return;
+	}
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_fuel_litres_per_km_from_truck_type",
+		args: {
+			vehicle: frm.doc.vehicle,
+		},
+		callback(response) {
+			frm._fuel_litres_per_km = flt(response.message);
+			if (recalculate && should_recalculate(frm)) {
+				apply_calculated_fuel_consumption(frm);
+				calculate_totals(frm);
+			}
+		},
+	});
+}
+
+function load_previous_month_maintenance_cost(frm, options = {}) {
+	const recalculate = options.recalculate !== false;
+	if (recalculate && !should_recalculate(frm)) {
+		return;
+	}
+
+	if (!frm.doc.vehicle) {
+		frm._maintenance_details = get_default_maintenance_details();
+		if (recalculate && should_recalculate(frm)) {
+			apply_calculated_expenses(frm);
+			calculate_totals(frm);
+		}
+		return;
+	}
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_previous_month_maintenance_cost_details",
+		args: {
+			vehicle: frm.doc.vehicle,
+			reference_date: get_maintenance_reference_date(frm),
+		},
+		callback(response) {
+			frm._maintenance_details = Object.assign(get_default_maintenance_details(), response.message || {});
+			if (recalculate && should_recalculate(frm)) {
+				apply_calculated_expenses(frm);
+				calculate_totals(frm);
+			}
+		},
+	});
+}
+
+function load_last_fuel_purchase_price(frm, options = {}) {
+	const recalculate = options.recalculate !== false;
+	if (recalculate && !should_recalculate(frm)) {
+		return;
+	}
+
+	if (!frm.doc.fuel_item) {
+		if (recalculate && should_recalculate(frm)) {
+			set_value_if_changed(frm, "fuel_price", 0);
+			calculate_totals(frm);
+		}
+		return;
+	}
+
+	frappe.call({
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_last_fuel_purchase_price",
+		args: {
+			fuel_item: frm.doc.fuel_item,
+		},
+		callback(response) {
+			const price_details = response.message || {};
+			const rate = flt(price_details.rate);
+			if (!rate) {
+				return;
+			}
+
+			if (recalculate && should_recalculate(frm)) {
+				set_value_if_changed(frm, "fuel_price", rate);
+				calculate_totals(frm);
+			}
+		},
 	});
 }
 
