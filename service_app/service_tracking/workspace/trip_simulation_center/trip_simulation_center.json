@@ -151,8 +151,9 @@
    "doc_view": "",
    "icon": "es-setting",
    "label": "Trip Settings",
-   "link_to": "Trip Settings",
-   "type": "DocType"
+   "link_to": "",
+   "type": "URL",
+   "url": "/app/trip-settings"
   },
   {
    "color": "#9333EA",

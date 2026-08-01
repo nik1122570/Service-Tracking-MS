@@ -283,8 +283,9 @@ TRIP_SIMULATION_CENTER_SHORTCUT_SECTIONS = (
         (
             {
                 "label": "Trip Settings",
-                "type": "DocType",
-                "link_to": "Trip Settings",
+                "type": "URL",
+                "link_to": "",
+                "url": "/app/trip-settings",
                 "color": "#334155",
                 "icon": "es-setting",
             },
@@ -754,6 +755,7 @@ def _ensure_workspace_shortcut(workspace, config):
         existing_row.label = config["label"]
         existing_row.type = config.get("type")
         existing_row.link_to = config.get("link_to")
+        existing_row.url = config.get("url")
         existing_row.color = config.get("color")
         existing_row.icon = config.get("icon")
         return
@@ -764,6 +766,7 @@ def _ensure_workspace_shortcut(workspace, config):
             "label": config["label"],
             "type": config.get("type"),
             "link_to": config.get("link_to"),
+            "url": config.get("url"),
             "color": config.get("color"),
             "icon": config.get("icon"),
         },
