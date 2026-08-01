@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 
@@ -6,6 +7,7 @@ from frappe.modules import scrub
 
 
 MAINTENANCE_CONTROL_CENTER = "Maintenance Control Center"
+TRIP_SIMULATION_CENTER = "Trip Simulation Center"
 MAINTENANCE_INTELLIGENCE_PAGE = "maintenance-intelligence"
 TYRE_INTELLIGENCE_PAGE = "tyre-intelligence"
 WORKSPACE_MODULE = "Service Tracking"
@@ -144,6 +146,190 @@ MAINTENANCE_CONTROL_CENTER_SHORTCUTS = (
         "color": "#0F766E",
         "icon": "es-pie-chart",
     },
+)
+TRIP_SIMULATION_CENTER_ROLES = (
+    "System Manager",
+    "Sales Manager",
+    "Sales User",
+    "Purchase Manager",
+    "Purchase User",
+    "Stock User",
+    "Accounts Manager",
+    "Accounts User",
+)
+TRIP_SIMULATION_CENTER_NUMBER_CARDS = (
+    {
+        "label": "Trip Simulations This Month",
+        "method": "service_app.service_tracking.number_cards.get_trip_simulations_this_month",
+        "document_type": "Trip Simulation",
+    },
+    {
+        "label": "Trip Revenue This Month",
+        "method": "service_app.service_tracking.number_cards.get_trip_simulation_revenue_this_month",
+        "document_type": "Trip Simulation",
+        "currency": True,
+    },
+    {
+        "label": "Trip Cost This Month",
+        "method": "service_app.service_tracking.number_cards.get_trip_simulation_cost_this_month",
+        "document_type": "Trip Simulation",
+        "currency": True,
+    },
+    {
+        "label": "Trip Profit/Loss This Month",
+        "method": "service_app.service_tracking.number_cards.get_trip_simulation_profit_loss_this_month",
+        "document_type": "Trip Simulation",
+        "currency": True,
+    },
+    {
+        "label": "Fuel Card Balance Litres",
+        "method": "service_app.service_tracking.number_cards.get_total_fuel_card_balance_litres",
+        "document_type": "Fuel Card",
+    },
+    {
+        "label": "Fuel Card Balance Value",
+        "method": "service_app.service_tracking.number_cards.get_total_fuel_card_balance_value",
+        "document_type": "Fuel Card",
+        "currency": True,
+    },
+)
+TRIP_SIMULATION_CENTER_CHARTS = (
+    {
+        "chart_name": "Trip Revenue Cost Profit This Month",
+        "label": "Revenue vs Cost vs Profit/Loss",
+        "method": "service_app.service_tracking.charts.get_trip_revenue_cost_profit",
+        "source": "Trip Revenue Cost Profit This Month",
+        "chart_type": "Bar",
+        "currency": True,
+    },
+    {
+        "chart_name": "Trip Cost Breakdown This Month",
+        "label": "Trip Cost Breakdown",
+        "method": "service_app.service_tracking.charts.get_trip_cost_breakdown",
+        "source": "Trip Cost Breakdown This Month",
+        "chart_type": "Pie",
+        "currency": True,
+    },
+)
+TRIP_SIMULATION_CENTER_SHORTCUT_SECTIONS = (
+    (
+        "Trip Simulation Workflow",
+        (
+            {
+                "label": "Trip Simulation",
+                "type": "DocType",
+                "link_to": "Trip Simulation",
+                "color": "#2563EB",
+                "icon": "es-line-chart",
+            },
+            {
+                "label": "Simulation Routes",
+                "type": "DocType",
+                "link_to": "Simulation Routes",
+                "color": "#0F766E",
+                "icon": "es-location",
+            },
+            {
+                "label": "Quotation",
+                "type": "DocType",
+                "link_to": "Quotation",
+                "color": "#7C3AED",
+                "icon": "es-note",
+            },
+            {
+                "label": "Purchase Order",
+                "type": "DocType",
+                "link_to": "Purchase Order",
+                "color": "#B45309",
+                "icon": "es-small-file",
+            },
+        ),
+    ),
+    (
+        "Fuel Card Operations",
+        (
+            {
+                "label": "Fuel Card",
+                "type": "DocType",
+                "link_to": "Fuel Card",
+                "color": "#EA580C",
+                "icon": "es-assets",
+            },
+            {
+                "label": "Fuel Card Recharge",
+                "type": "DocType",
+                "link_to": "Fuel Card Recharge",
+                "color": "#16A34A",
+                "icon": "es-add",
+            },
+            {
+                "label": "Fuel Card Issue",
+                "type": "DocType",
+                "link_to": "Fuel Card Issue",
+                "color": "#DC2626",
+                "icon": "es-minus",
+            },
+            {
+                "label": "Fuel Card Ledger Entry",
+                "type": "DocType",
+                "link_to": "Fuel Card Ledger Entry",
+                "color": "#475569",
+                "icon": "es-list",
+            },
+        ),
+    ),
+    (
+        "Masters and Settings",
+        (
+            {
+                "label": "Trip Settings",
+                "type": "DocType",
+                "link_to": "Trip Settings",
+                "color": "#334155",
+                "icon": "es-setting",
+            },
+            {
+                "label": "Fixed Expenses",
+                "type": "DocType",
+                "link_to": "Fixed Expenses",
+                "color": "#9333EA",
+                "icon": "es-small-file",
+            },
+            {
+                "label": "Vehicle",
+                "type": "DocType",
+                "link_to": "Vehicle",
+                "color": "#0F766E",
+                "icon": "es-truck",
+            },
+            {
+                "label": "Customer",
+                "type": "DocType",
+                "link_to": "Customer",
+                "color": "#2563EB",
+                "icon": "es-users",
+            },
+        ),
+    ),
+    (
+        "Reports",
+        (
+            {
+                "label": "Trip Analysis Report",
+                "type": "Report",
+                "link_to": "Trip Analysis Report",
+                "color": "#2563EB",
+                "icon": "es-line-chart",
+            },
+            {
+                "label": "Fuel Card Movement Report",
+                "type": "Report",
+                "link_to": "Fuel Card Movement Report",
+                "color": "#EA580C",
+                "icon": "es-list",
+            },
+        ),
+    ),
 )
 
 
@@ -649,6 +835,10 @@ def _save_workspace_content(workspace, content):
     workspace.flags.workspace_content_updated = True
 
 
+def _workspace_block_id(block_type, key):
+    return hashlib.sha1(f"{block_type}:{key}".encode("utf-8")).hexdigest()[:10]
+
+
 def _ensure_workspace_content_header(workspace, text, col=12):
     content = _load_workspace_content(workspace)
     existing_block = next(
@@ -668,7 +858,7 @@ def _ensure_workspace_content_header(workspace, text, col=12):
 
     content.append(
         {
-            "id": frappe.generate_hash(length=10),
+            "id": _workspace_block_id("header", text),
             "type": "header",
             "data": {
                 "text": text,
@@ -698,7 +888,7 @@ def _ensure_workspace_content_number_card_block(workspace, number_card_name, col
 
     content.append(
         {
-            "id": frappe.generate_hash(length=10),
+            "id": _workspace_block_id("number_card", number_card_name),
             "type": "number_card",
             "data": {
                 "number_card_name": number_card_name,
@@ -728,7 +918,7 @@ def _ensure_workspace_content_chart_block(workspace, chart_name, col=6):
 
     content.append(
         {
-            "id": frappe.generate_hash(length=10),
+            "id": _workspace_block_id("chart", chart_name),
             "type": "chart",
             "data": {
                 "chart_name": chart_name,
@@ -758,7 +948,7 @@ def _ensure_workspace_content_shortcut_block(workspace, shortcut_label, col=4):
         return
 
     shortcut_block = {
-        "id": frappe.generate_hash(length=10),
+        "id": _workspace_block_id("shortcut", shortcut_label),
         "type": "shortcut",
         "data": {
             "shortcut_name": shortcut_label,
@@ -878,19 +1068,111 @@ def sync_maintenance_control_center_dashboard_assets():
     return synced
 
 
+def _ensure_trip_simulation_center_workspace(workspace_name=TRIP_SIMULATION_CENTER):
+    is_new = not frappe.db.exists("Workspace", workspace_name)
+    workspace = frappe.new_doc("Workspace") if is_new else frappe.get_doc("Workspace", workspace_name)
+
+    workspace.label = workspace_name
+    if hasattr(workspace, "title"):
+        workspace.title = workspace_name
+    if hasattr(workspace, "module"):
+        workspace.module = WORKSPACE_MODULE
+    if hasattr(workspace, "public"):
+        workspace.public = 1
+    if hasattr(workspace, "category"):
+        workspace.category = "Modules"
+    workspace.is_hidden = 0
+    workspace.icon = "es-line-chart"
+    workspace.content = "[]"
+
+    workspace.set("roles", [])
+    workspace.set("number_cards", [])
+    workspace.set("charts", [])
+    workspace.set("shortcuts", [])
+
+    for role in TRIP_SIMULATION_CENTER_ROLES:
+        _ensure_workspace_role(workspace, role)
+
+    workspace.flags.ignore_permissions = True
+    if is_new:
+        workspace.insert(ignore_permissions=True)
+    else:
+        workspace.save(ignore_permissions=True)
+
+    return workspace
+
+
+@frappe.whitelist()
+def setup_trip_simulation_center_workspace(workspace_name=TRIP_SIMULATION_CENTER):
+    workspace = _ensure_trip_simulation_center_workspace(workspace_name)
+
+    _ensure_workspace_content_header(
+        workspace,
+        '<span class="h4"><b>Trip Simulation Dashboard</b></span>',
+    )
+
+    for card_config in TRIP_SIMULATION_CENTER_NUMBER_CARDS:
+        if card_config.get("document_type") and not frappe.db.exists("DocType", card_config["document_type"]):
+            continue
+
+        card_name = _upsert_custom_number_card(card_config)
+        _ensure_workspace_number_card(workspace, card_name, card_config["label"])
+        _ensure_workspace_content_number_card_block(workspace, card_name, col=4)
+
+    _ensure_workspace_content_header(
+        workspace,
+        '<span class="h4"><b>Trip Simulation Visuals</b></span>',
+    )
+
+    for chart_config in TRIP_SIMULATION_CENTER_CHARTS:
+        chart_name = _upsert_legacy_dashboard_chart(chart_config)
+        if not chart_name:
+            continue
+
+        _ensure_workspace_chart(workspace, chart_name, chart_config["label"])
+        _ensure_workspace_content_chart_block(workspace, chart_name, col=6)
+
+    for section_label, shortcuts in TRIP_SIMULATION_CENTER_SHORTCUT_SECTIONS:
+        _ensure_workspace_content_header(
+            workspace,
+            f'<span class="h4"><b>{section_label}</b></span>',
+        )
+
+        for shortcut_config in shortcuts:
+            if not _workspace_shortcut_target_exists(shortcut_config):
+                continue
+
+            _ensure_workspace_shortcut(workspace, shortcut_config)
+            _ensure_workspace_content_shortcut_block(workspace, shortcut_config["label"], col=3)
+
+    _prune_invalid_workspace_links(workspace)
+
+    workspace.flags.ignore_permissions = True
+    workspace.save(ignore_permissions=True)
+    if getattr(workspace.flags, "workspace_content_updated", False):
+        frappe.db.set_value(
+            "Workspace",
+            workspace.name,
+            "content",
+            workspace.content,
+            update_modified=False,
+        )
+    frappe.clear_cache()
+    frappe.db.commit()
+
+    return f"Workspace {workspace_name} created/updated."
+
+
 @frappe.whitelist()
 def bootstrap_service_tracking_dashboards():
     """
     Ensure reusable dashboard assets exist on any site.
-
-    Workspaces are intentionally not created here. This avoids install failures
-    from site-specific Workspace links and lets each site arrange its dashboard
-    layout manually.
     """
     errors = []
     bootstrap_steps = (
         ("Fleet Maintenance Dashboard Assets", sync_fleet_maintenance_dashboard_assets),
         ("Maintenance Control Center Assets", sync_maintenance_control_center_dashboard_assets),
+        ("Trip Simulation Center Workspace", setup_trip_simulation_center_workspace),
     )
 
     for label, setup_dashboard in bootstrap_steps:

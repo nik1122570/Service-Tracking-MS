@@ -1,0 +1,13 @@
+{
+ "creation": "2026-08-01 11:46:38.564993",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart Source",
+ "idx": 0,
+ "modified": "2026-08-01 11:46:38.564993",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Revenue Cost Profit This Month",
+ "owner": "Administrator",
+ "source_name": "Trip Revenue Cost Profit This Month",
+ "timeseries": 0
+}

@@ -1,0 +1,201 @@
+{
+ "charts": [
+  {
+   "chart_name": "Trip Revenue Cost Profit This Month",
+   "label": "Revenue vs Cost vs Profit/Loss"
+  },
+  {
+   "chart_name": "Trip Cost Breakdown This Month",
+   "label": "Trip Cost Breakdown"
+  }
+ ],
+ "content": "[{\"id\":\"0e03f83bcb\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Trip Simulation Dashboard</b></span>\",\"col\":12}},{\"id\":\"6fbb751c27\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Trip Simulations This Month\",\"col\":4}},{\"id\":\"6be1d82ba0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Trip Revenue This Month\",\"col\":4}},{\"id\":\"ba502f250c\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Trip Cost This Month\",\"col\":4}},{\"id\":\"557bdee5ab\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Trip Profit/Loss This Month\",\"col\":4}},{\"id\":\"a1ca95c724\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Fuel Card Balance Litres\",\"col\":4}},{\"id\":\"7f232453dd\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Fuel Card Balance Value\",\"col\":4}},{\"id\":\"030f7b96a6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Trip Simulation Visuals</b></span>\",\"col\":12}},{\"id\":\"d48107e963\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Trip Revenue Cost Profit This Month\",\"col\":6}},{\"id\":\"81d52db10e\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Trip Cost Breakdown This Month\",\"col\":6}},{\"id\":\"3636c511d2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Trip Simulation Workflow</b></span>\",\"col\":12}},{\"id\":\"bfb7cf211f\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trip Simulation\",\"col\":3}},{\"id\":\"aaddf1a772\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Simulation Routes\",\"col\":3}},{\"id\":\"b0f0981de5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quotation\",\"col\":3}},{\"id\":\"d680b3252e\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order\",\"col\":3}},{\"id\":\"b4c4fe6428\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Fuel Card Operations</b></span>\",\"col\":12}},{\"id\":\"e2dcb2b8ad\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Card\",\"col\":3}},{\"id\":\"3f372660cc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Card Recharge\",\"col\":3}},{\"id\":\"456b83dc2f\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Card Issue\",\"col\":3}},{\"id\":\"d7db33567e\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Card Ledger Entry\",\"col\":3}},{\"id\":\"159ff72900\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters and Settings</b></span>\",\"col\":12}},{\"id\":\"e0fe7b0d56\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trip Settings\",\"col\":3}},{\"id\":\"f0f22f53ff\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fixed Expenses\",\"col\":3}},{\"id\":\"06230ed7f0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle\",\"col\":3}},{\"id\":\"2aae13f2b2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}},{\"id\":\"ae6b559f40\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports</b></span>\",\"col\":12}},{\"id\":\"44003d5506\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trip Analysis Report\",\"col\":3}},{\"id\":\"79ba79005a\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Card Movement Report\",\"col\":3}}]",
+ "creation": "2026-08-01 11:40:34.053092",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "es-line-chart",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Trip Simulation Center",
+ "links": [],
+ "modified": "2026-08-01 11:50:16.351486",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Trip Simulation Center",
+ "number_cards": [
+  {
+   "label": "Trip Simulations This Month",
+   "number_card_name": "Trip Simulations This Month"
+  },
+  {
+   "label": "Trip Revenue This Month",
+   "number_card_name": "Trip Revenue This Month"
+  },
+  {
+   "label": "Trip Cost This Month",
+   "number_card_name": "Trip Cost This Month"
+  },
+  {
+   "label": "Trip Profit/Loss This Month",
+   "number_card_name": "Trip Profit/Loss This Month"
+  },
+  {
+   "label": "Fuel Card Balance Litres",
+   "number_card_name": "Fuel Card Balance Litres"
+  },
+  {
+   "label": "Fuel Card Balance Value",
+   "number_card_name": "Fuel Card Balance Value"
+  }
+ ],
+ "owner": "Administrator",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Purchase Manager"
+  },
+  {
+   "role": "Purchase User"
+  },
+  {
+   "role": "Stock User"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "sequence_id": 0.0,
+ "shortcuts": [
+  {
+   "color": "#2563EB",
+   "doc_view": "",
+   "icon": "es-line-chart",
+   "label": "Trip Simulation",
+   "link_to": "Trip Simulation",
+   "type": "DocType"
+  },
+  {
+   "color": "#0F766E",
+   "doc_view": "",
+   "icon": "es-location",
+   "label": "Simulation Routes",
+   "link_to": "Simulation Routes",
+   "type": "DocType"
+  },
+  {
+   "color": "#7C3AED",
+   "doc_view": "",
+   "icon": "es-note",
+   "label": "Quotation",
+   "link_to": "Quotation",
+   "type": "DocType"
+  },
+  {
+   "color": "#B45309",
+   "doc_view": "",
+   "icon": "es-small-file",
+   "label": "Purchase Order",
+   "link_to": "Purchase Order",
+   "type": "DocType"
+  },
+  {
+   "color": "#EA580C",
+   "doc_view": "",
+   "icon": "es-assets",
+   "label": "Fuel Card",
+   "link_to": "Fuel Card",
+   "type": "DocType"
+  },
+  {
+   "color": "#16A34A",
+   "doc_view": "",
+   "icon": "es-add",
+   "label": "Fuel Card Recharge",
+   "link_to": "Fuel Card Recharge",
+   "type": "DocType"
+  },
+  {
+   "color": "#DC2626",
+   "doc_view": "",
+   "icon": "es-minus",
+   "label": "Fuel Card Issue",
+   "link_to": "Fuel Card Issue",
+   "type": "DocType"
+  },
+  {
+   "color": "#475569",
+   "doc_view": "",
+   "icon": "es-list",
+   "label": "Fuel Card Ledger Entry",
+   "link_to": "Fuel Card Ledger Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "#334155",
+   "doc_view": "",
+   "icon": "es-setting",
+   "label": "Trip Settings",
+   "link_to": "Trip Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "#9333EA",
+   "doc_view": "",
+   "icon": "es-small-file",
+   "label": "Fixed Expenses",
+   "link_to": "Fixed Expenses",
+   "type": "DocType"
+  },
+  {
+   "color": "#0F766E",
+   "doc_view": "",
+   "icon": "es-truck",
+   "label": "Vehicle",
+   "link_to": "Vehicle",
+   "type": "DocType"
+  },
+  {
+   "color": "#2563EB",
+   "doc_view": "",
+   "icon": "es-users",
+   "label": "Customer",
+   "link_to": "Customer",
+   "type": "DocType"
+  },
+  {
+   "color": "#2563EB",
+   "doc_view": "",
+   "icon": "es-line-chart",
+   "label": "Trip Analysis Report",
+   "link_to": "Trip Analysis Report",
+   "report_ref_doctype": "Trip Simulation",
+   "type": "Report"
+  },
+  {
+   "color": "#EA580C",
+   "doc_view": "",
+   "icon": "es-list",
+   "label": "Fuel Card Movement Report",
+   "link_to": "Fuel Card Movement Report",
+   "report_ref_doctype": "Fuel Card Ledger Entry",
+   "type": "Report"
+  }
+ ],
+ "title": "Trip Simulation Center"
+}

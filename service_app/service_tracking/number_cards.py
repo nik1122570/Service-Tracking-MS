@@ -355,3 +355,87 @@ def get_total_tyre_cost_this_quarter(filters=None):
     return _build_currency_number_card_response(
         _get_submitted_purchase_invoice_tyre_cost(from_date, to_date)
     )
+
+
+def _get_submitted_trip_simulation_total(fieldname, from_date=None, to_date=None):
+    conditions = ["docstatus = 1"]
+    values = {}
+
+    if from_date and to_date:
+        conditions.append("transaction_date BETWEEN %(from_date)s AND %(to_date)s")
+        values.update({"from_date": from_date, "to_date": to_date})
+
+    total = frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM({fieldname}), 0)
+        FROM `tabTrip Simulation`
+        WHERE {' AND '.join(conditions)}
+        """,
+        values,
+    )[0][0] or 0
+
+    return flt(total)
+
+
+@frappe.whitelist()
+def get_trip_simulations_this_month(filters=None):
+    from_date, to_date = _get_current_month_date_range()
+    return _build_number_card_response(
+        frappe.db.count(
+            "Trip Simulation",
+            {
+                "docstatus": 1,
+                "transaction_date": ["between", [from_date, to_date]],
+            },
+        )
+    )
+
+
+@frappe.whitelist()
+def get_trip_simulation_revenue_this_month(filters=None):
+    from_date, to_date = _get_current_month_date_range()
+    return _build_currency_number_card_response(
+        _get_submitted_trip_simulation_total("expected_revenue", from_date, to_date)
+    )
+
+
+@frappe.whitelist()
+def get_trip_simulation_cost_this_month(filters=None):
+    from_date, to_date = _get_current_month_date_range()
+    return _build_currency_number_card_response(
+        _get_submitted_trip_simulation_total("total_trip_cost", from_date, to_date)
+    )
+
+
+@frappe.whitelist()
+def get_trip_simulation_profit_loss_this_month(filters=None):
+    from_date, to_date = _get_current_month_date_range()
+    return _build_currency_number_card_response(
+        _get_submitted_trip_simulation_total("net_profit", from_date, to_date)
+    )
+
+
+@frappe.whitelist()
+def get_total_fuel_card_balance_litres(filters=None):
+    total = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(current_balance_litres), 0)
+        FROM `tabFuel Card`
+        WHERE status = 'Active'
+        """
+    )[0][0] or 0
+
+    return _build_number_card_response(flt(total), "Float")
+
+
+@frappe.whitelist()
+def get_total_fuel_card_balance_value(filters=None):
+    total = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(current_balance_value), 0)
+        FROM `tabFuel Card`
+        WHERE status = 'Active'
+        """
+    )[0][0] or 0
+
+    return _build_currency_number_card_response(total)
