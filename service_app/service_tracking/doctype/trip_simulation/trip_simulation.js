@@ -597,6 +597,16 @@ function apply_calculated_expenses(frm) {
 				amount: flt(rate) * flt(quantity),
 				description: `${format_formula_number(quantity)}% of ${format_formula_number(frm.doc.expected_revenue)}`,
 			}) || changed;
+		} else if (normalize_expense_name(row.expense) === "driver mileage") {
+			const rate = get_trip_setting_value(frm, "driver_mileage_per_day");
+			const quantity = flt(frm.doc.days_in_trip);
+			changed = update_row_if_changed(row, {
+				rate,
+				quantity,
+				previous_month_maintenance_cost: 0,
+				amount: flt(rate) * flt(quantity),
+				description: `${format_formula_number(rate)} per day x ${format_formula_number(quantity)} trip days`,
+			}) || changed;
 		} else if (expense_limit.calculation_method === "Per Trip Day") {
 			const rate = flt(expense_limit.amount);
 			const quantity = flt(frm.doc.days_in_trip);
@@ -792,6 +802,9 @@ function get_allowed_expense_amount(expense_limit, frm, percentage_override = nu
 	if (normalize_expense_name(expense_limit.expense) === "salaries") {
 		return flt(frm.doc.expected_revenue) * get_trip_setting_value(frm, "salaries_percentage") / 100;
 	}
+	if (normalize_expense_name(expense_limit.expense) === "driver mileage") {
+		return get_trip_setting_value(frm, "driver_mileage_per_day") * flt(frm.doc.days_in_trip);
+	}
 
 	const amount = flt(expense_limit.amount);
 	if (expense_limit.calculation_method === "Per Trip Day") {
@@ -838,6 +851,7 @@ function get_default_trip_settings() {
 	return {
 		management_fee_percentage: 3,
 		salaries_percentage: 10,
+		driver_mileage_per_day: 0,
 		heavy_truck_vehicle_cost: 85000000,
 		light_truck_vehicle_cost: 45000000,
 		heavy_truck_tyre_price: 0,

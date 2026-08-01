@@ -8,6 +8,7 @@
   "expense_percentages_section",
   "management_fee_percentage",
   "salaries_percentage",
+  "driver_mileage_per_day",
   "vehicle_costs_section",
   "heavy_truck_vehicle_cost",
   "light_truck_vehicle_cost",
@@ -41,6 +42,14 @@
    "fieldname": "salaries_percentage",
    "fieldtype": "Percent",
    "label": "Salaries Percentage"
+  },
+  {
+   "default": "0",
+   "description": "Daily Driver Mileage amount used by Trip Simulation. Driver Mileage = Driver Mileage Per Day x Days in Trip.",
+   "fieldname": "driver_mileage_per_day",
+   "fieldtype": "Currency",
+   "label": "Driver Mileage Per Day",
+   "non_negative": 1
   },
   {
    "fieldname": "vehicle_costs_section",

@@ -15,6 +15,7 @@ from service_app.service_tracking.doctype.fuel_card_ledger_entry.fuel_card_ledge
 TRIP_SETTINGS_DEFAULTS = {
 	"management_fee_percentage": 3,
 	"salaries_percentage": 10,
+	"driver_mileage_per_day": 0,
 	"heavy_truck_vehicle_cost": 85000000,
 	"light_truck_vehicle_cost": 45000000,
 	"heavy_truck_tyre_price": 0,
@@ -248,6 +249,15 @@ class TripSimulation(Document):
 				row.description = (
 					f"{format_formula_number(row.quantity)}% of {format_formula_number(self.expected_revenue)}"
 				)
+			elif normalize_expense_name(row.expense) == "driver mileage":
+				row.rate = get_trip_setting_value(trip_settings, "driver_mileage_per_day")
+				row.quantity = self.days_in_trip or 0
+				row.previous_month_maintenance_cost = 0
+				row.amount = flt(row.rate) * flt(row.quantity)
+				row.description = (
+					f"{format_formula_number(row.rate)} per day x "
+					f"{format_formula_number(row.quantity)} trip days"
+				)
 			elif expense_limit.get("calculation_method") == "Per Trip Day":
 				row.rate = flt(expense_limit.get("amount"))
 				row.quantity = self.days_in_trip or 0
@@ -455,6 +465,11 @@ def get_route_details(
 			rate = flt(expected_revenue) / 100
 			amount = rate * quantity
 			description = f"{format_formula_number(quantity)}% of {format_formula_number(expected_revenue)}"
+		elif expense_key == "driver mileage":
+			rate = get_trip_setting_value(trip_settings, "driver_mileage_per_day")
+			quantity = flt(days_in_trip)
+			amount = rate * quantity
+			description = f"{format_formula_number(rate)} per day x {format_formula_number(quantity)} trip days"
 		elif expense_meta.get("calculation_method") == "Per Trip Day":
 			quantity = flt(days_in_trip)
 			amount = rate * quantity
@@ -1177,6 +1192,11 @@ def get_allowed_expense_amount(
 			get_trip_settings(),
 			"salaries_percentage",
 		) / 100
+	if normalize_expense_name(expense_limit.get("expense")) == "driver mileage":
+		return get_trip_setting_value(
+			get_trip_settings(),
+			"driver_mileage_per_day",
+		) * flt(days_in_trip)
 
 	amount = flt(expense_limit.get("amount"))
 	if expense_limit.get("calculation_method") == "Per Trip Day":
