@@ -21,10 +21,9 @@
   {
    "allow_on_submit": 1,
    "fieldname": "expense",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Expense",
-   "options": "Fixed Expenses"
+   "label": "Expense"
   },
   {
    "allow_on_submit": 1,

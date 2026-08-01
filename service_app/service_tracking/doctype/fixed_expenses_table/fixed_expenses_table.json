@@ -13,25 +13,20 @@
  "fields": [
   {
    "fieldname": "expense",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Expense",
-   "options": "Fixed Expenses",
    "reqd": 1
   },
   {
-   "fetch_from": "expense.currency",
    "fieldname": "currency",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Currency",
    "options": "Currency",
-   "read_only": 1,
    "reqd": 1
   },
   {
-   "fetch_from": "expense.fixed_value",
-   "fetch_if_empty": 1,
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
