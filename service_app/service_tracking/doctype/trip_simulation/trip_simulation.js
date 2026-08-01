@@ -13,7 +13,10 @@ frappe.ui.form.on("Trip Simulation", {
 
 	refresh(frm) {
 		frm._trip_simulation_refreshing = true;
+		apply_fuel_tab_layout_styles(frm);
 		update_trip_financial_dashboard(frm);
+		update_fuel_card_status_dashboard(frm);
+		load_fuel_card_balance(frm, { silent: true });
 
 		if (frm.doc.docstatus === 1) {
 			load_route_expense_limits(frm, { recalculate: false });
@@ -136,6 +139,10 @@ frappe.ui.form.on("Trip Simulation", {
 		calculate_totals(frm);
 	},
 
+	fuel_card(frm) {
+		load_fuel_card_balance(frm);
+	},
+
 	fuel_item(frm) {
 		load_last_fuel_purchase_price(frm);
 	},
@@ -161,6 +168,22 @@ frappe.ui.form.on("Trip Simulation", {
 		load_previous_month_maintenance_cost(frm);
 	},
 });
+
+function apply_fuel_tab_layout_styles(frm) {
+	const fuel_grid = frm.get_field("fuel")?.grid;
+	if (fuel_grid?.wrapper) {
+		fuel_grid.wrapper.find(".grid-heading-row, .grid-row").css("min-width", "760px");
+		fuel_grid.wrapper.find(".grid-body").css("overflow-x", "auto");
+	}
+
+	const dashboard_field = frm.get_field("fuel_card_status_dashboard");
+	if (dashboard_field?.$wrapper) {
+		dashboard_field.$wrapper.css({
+			"margin-bottom": "16px",
+			"display": "block",
+		});
+	}
+}
 
 frappe.ui.form.on("Trip Steps", {
 	distance(frm) {
@@ -238,12 +261,191 @@ function calculate_totals(frm) {
 	set_value_if_changed(frm, "total_trip_cost", total_trip_cost);
 	set_value_if_changed(frm, "net_profit", net_profit);
 	set_value_if_changed(frm, "net_profit_", net_profit_margin);
+	update_fuel_card_status_dashboard(frm, {
+		total_fuel_costs,
+		total_fuel_consumption_qty,
+	});
 	update_trip_financial_dashboard(frm, {
 		expected_revenue,
 		total_trip_cost,
 		net_profit,
 		net_profit_margin,
 	});
+}
+
+function load_fuel_card_balance(frm) {
+	if (!frm.doc.fuel_card) {
+		frm._fuel_card_balance = null;
+		update_fuel_card_status_dashboard(frm);
+		return;
+	}
+
+	frappe.db.get_value("Fuel Card", frm.doc.fuel_card, [
+		"current_balance_litres",
+		"current_balance_value",
+		"status",
+		"currency",
+	]).then((response) => {
+		frm._fuel_card_balance = response.message || {};
+		update_fuel_card_status_dashboard(frm);
+	}).catch(() => {
+		frm._fuel_card_balance = null;
+		show_fuel_card_dashboard_error(frm);
+	});
+}
+
+function show_fuel_card_dashboard_error(frm) {
+	const field = frm.get_field("fuel_card_status_dashboard");
+	if (!field) {
+		return;
+	}
+
+	const dashboard_html = `
+		<div style="margin: 10px 0 18px; border: 1px solid #fecaca; border-radius: 14px; padding: 14px 16px; color: #991b1b; background: #fef2f2; font-weight: 700;">
+			${__("Could not load Fuel Card balance. Please refresh or check Fuel Card permissions.")}
+		</div>
+	`;
+	field.df.options = dashboard_html;
+	field.refresh();
+	field.$wrapper.html(dashboard_html);
+}
+
+function update_fuel_card_status_dashboard(frm, values = {}) {
+	const field = frm.get_field("fuel_card_status_dashboard");
+	if (!field) {
+		return;
+	}
+
+	const requested_amount = flt(values.total_fuel_costs ?? frm.doc.total_fuel_costs);
+	const requested_litres = flt(values.total_fuel_consumption_qty ?? frm.doc.total_fuel_consumption_qty_ratio);
+	const balance = frm._fuel_card_balance || {};
+	const balance_amount = flt(balance.current_balance_value);
+	const balance_litres = flt(balance.current_balance_litres);
+	const remaining_amount = balance_amount - requested_amount;
+	const remaining_litres = balance_litres - requested_litres;
+	const has_card = Boolean(frm.doc.fuel_card);
+	const card_status = balance.status || __("Not Selected");
+	const has_available_amount = has_card && remaining_amount >= 0;
+	const has_available_litres = has_card && remaining_litres >= 0;
+	const is_available = has_available_amount && has_available_litres && card_status !== "Blocked";
+	const status_label = !has_card ? __("Select Fuel Card") : is_available ? __("Available") : __("Refill Needed");
+	const status_color = !has_card ? "#64748b" : is_available ? "#16a34a" : "#dc2626";
+	const status_note = get_fuel_card_status_note({
+		has_card,
+		card_status,
+		has_available_amount,
+		has_available_litres,
+	});
+	const fuel_card_label = has_card ? escape_html(frm.doc.fuel_card) : __("Choose a Fuel Card to check balance");
+
+	update_fuel_card_dashboard_indicator(frm, {
+		status_label,
+		is_available,
+		requested_amount,
+		balance_amount,
+		remaining_amount,
+		has_card,
+	});
+
+	const dashboard_html = `
+		<div style="
+			margin: 10px 0 18px;
+			border: 1px solid var(--border-color);
+			border-radius: 16px;
+			overflow: hidden;
+			background: linear-gradient(135deg, #ffffff 0%, #f8fafc 45%, #eef6ff 100%);
+			box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+		">
+			<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border-color);">
+				<div>
+					<div style="font-size: 13px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em;">
+						${__("Fuel Card Availability")}
+					</div>
+					<div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+						${fuel_card_label}
+					</div>
+				</div>
+				<div style="background: ${status_color}; color: #fff; border-radius: 999px; padding: 7px 13px; font-weight: 800; font-size: 12px;">
+					${status_label}
+				</div>
+			</div>
+			<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 14px 16px;">
+				${get_fuel_card_status_card(__("Card Amount Balance"), format_currency(balance_amount), "#2563eb")}
+				${get_fuel_card_status_card(__("Requested Amount"), format_currency(requested_amount), "#f97316")}
+				${get_fuel_card_status_card(__("Amount After Request"), format_currency(remaining_amount), remaining_amount >= 0 ? "#16a34a" : "#dc2626")}
+				${get_fuel_card_status_card(__("Card Qty Balance"), `${format_dashboard_number(balance_litres)} Ltr`, "#0f766e")}
+				${get_fuel_card_status_card(__("Requested Qty"), `${format_dashboard_number(requested_litres)} Ltr`, "#7c3aed")}
+				${get_fuel_card_status_card(__("Qty After Request"), `${format_dashboard_number(remaining_litres)} Ltr`, remaining_litres >= 0 ? "#16a34a" : "#dc2626")}
+			</div>
+			<div style="padding: 0 16px 14px; color: ${status_color}; font-size: 12px; font-weight: 700;">
+				${status_note}
+			</div>
+		</div>
+	`;
+
+	field.df.options = dashboard_html;
+	field.refresh();
+	field.$wrapper.html(dashboard_html);
+}
+
+function update_fuel_card_dashboard_indicator(frm, values) {
+	if (!frm.dashboard || !values.has_card) {
+		return;
+	}
+
+	frm.dashboard.parent.find(".fuel-card-availability-headline").remove();
+	const indicator_color = values.is_available ? "green" : "red";
+	frm.dashboard.add_section(
+		`
+			<div class="fuel-card-availability-headline" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+				<span class="indicator ${indicator_color}">${__("Fuel Card")}: ${values.status_label}</span>
+				<span style="font-weight: 700;">${__("Balance")}: ${format_currency(values.balance_amount)}</span>
+				<span style="font-weight: 700;">${__("Requested")}: ${format_currency(values.requested_amount)}</span>
+				<span style="font-weight: 700;">${__("After Request")}: ${format_currency(values.remaining_amount)}</span>
+			</div>
+		`,
+		null,
+		"custom fuel-card-availability-headline"
+	);
+}
+
+function get_fuel_card_status_card(label, value, accent) {
+	return `
+		<div style="background: #fff; border: 1px solid var(--border-color); border-radius: 13px; padding: 12px 13px;">
+			<div style="display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase;">
+				<span style="width: 8px; height: 8px; border-radius: 999px; background: ${accent}; display: inline-block;"></span>
+				${label}
+			</div>
+			<div style="font-size: 20px; font-weight: 800; margin-top: 7px; color: var(--text-color);">
+				${value}
+			</div>
+		</div>
+	`;
+}
+
+function get_fuel_card_status_note(options) {
+	if (!options.has_card) {
+		return __("No Fuel Card selected yet.");
+	}
+	if (options.card_status === "Blocked") {
+		return __("This Fuel Card is blocked. Please use another card or unblock it before submitting.");
+	}
+	if (!options.has_available_amount) {
+		return __("Requested fuel amount is higher than available card value. Please refill the Fuel Card.");
+	}
+	if (!options.has_available_litres) {
+		return __("Requested fuel litres are higher than available card litres. Please refill the Fuel Card.");
+	}
+	return __("Fuel Card has enough value and litres for this request.");
+}
+
+function escape_html(value) {
+	return String(value || "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
 }
 
 function update_trip_financial_dashboard(frm, values = {}) {
@@ -983,6 +1185,13 @@ function format_percentage_value(value) {
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2,
 	})}%`;
+}
+
+function format_dashboard_number(value) {
+	return flt(value).toLocaleString(undefined, {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	});
 }
 
 function show_payable_expenses_dialog(frm) {

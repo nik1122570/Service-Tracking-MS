@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-08-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "posting_date",
+  "fuel_card",
+  "transaction_type",
+  "section_break_reference",
+  "reference_doctype",
+  "reference_name",
+  "column_break_reference",
+  "vehicle",
+  "driver",
+  "litres_section",
+  "litres_in",
+  "litres_out",
+  "column_break_litres",
+  "rate",
+  "amount",
+  "balance_litres_after_transaction",
+  "balance_value_after_transaction",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "default": "FUEL-LED-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Naming Series"
+  },
+  {
+   "default": "Now",
+   "fieldname": "posting_date",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Posting Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fuel_card",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Card",
+   "options": "Fuel Card",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "transaction_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Transaction Type",
+   "options": "Recharge\nTrip Usage\nOffice Car Usage\nAdjustment\nCancellation",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_reference",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Doctype",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_reference",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Link",
+   "label": "Vehicle",
+   "options": "Vehicle",
+   "read_only": 1
+  },
+  {
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "label": "Driver",
+   "options": "Drivers",
+   "read_only": 1
+  },
+  {
+   "fieldname": "litres_section",
+   "fieldtype": "Section Break",
+   "label": "Litres"
+  },
+  {
+   "default": "0",
+   "fieldname": "litres_in",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Litres In",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "litres_out",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Litres Out",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_litres",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "balance_litres_after_transaction",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Balance Litres After Transaction",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "balance_value_after_transaction",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Balance Value After Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-08-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Service Tracking",
+ "name": "Fuel Card Ledger Entry",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -28,14 +28,21 @@
   "active_vehicles",
   "trip_expenses_tab",
   "fuel_costs_section",
+  "fuel_card",
+  "fuel_card_status_dashboard",
   "fuel_supplier",
-  "create_fuel_purchase_order",
+  "fuel_item",
+  "fuel_details_section",
   "fuel",
+  "fuel_summary_section",
   "total_fuel_consumption_qty_ratio",
   "total_distance_km",
+  "column_break_efwo",
   "fuel_price",
   "total_fuel_costs",
-  "fuel_item",
+  "fuel_references_section",
+  "create_fuel_purchase_order",
+  "fuel_card_ledger_entry",
   "fuel_purchase_order",
   "quotation",
   "trip_expenses_section",
@@ -133,22 +140,46 @@
   {
    "fieldname": "fuel_costs_section",
    "fieldtype": "Section Break",
-   "label": "Fuel Costs"
+   "label": "Fuel Card and Availability"
+  },
+  {
+   "fieldname": "fuel_card",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Card",
+   "options": "Fuel Card"
+  },
+  {
+   "fieldname": "fuel_card_status_dashboard",
+   "fieldtype": "HTML",
+   "label": "Fuel Card Status Dashboard",
+   "options": "<div style=\"margin: 10px 0 18px; border: 1px dashed var(--border-color); border-radius: 14px; padding: 14px 16px; color: var(--text-muted); background: #f8fafc;\">Select a Fuel Card to view card balance, requested amount, and availability status.</div>"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "fuel_details_section",
+   "fieldtype": "Section Break",
+   "label": "Fuel Route and Consumption"
   },
   {
    "fieldname": "fuel",
    "fieldtype": "Table",
-   "label": "Fuel",
+   "label": "Fuel Route and Consumption",
    "options": "Trip Steps",
    "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "fuel_summary_section",
+   "fieldtype": "Section Break",
+   "label": "Fuel Summary"
   },
   {
    "fieldname": "fuel_price",
    "fieldtype": "Currency",
    "label": "Fuel Price",
    "non_negative": 1,
-   "read_only": 1,
-   "reqd": 1
+   "read_only": 1
   },
   {
    "allow_on_submit": 1,
@@ -298,6 +329,12 @@
    "reqd": 1
   },
   {
+   "collapsible": 1,
+   "fieldname": "fuel_references_section",
+   "fieldtype": "Section Break",
+   "label": "Fuel References"
+  },
+  {
    "fieldname": "fuel_supplier",
    "fieldtype": "Link",
    "label": "Fuel Supplier",
@@ -315,6 +352,15 @@
    "label": "Fuel Item",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "fuel_card_ledger_entry",
+   "fieldtype": "Link",
+   "label": "Fuel Card Ledger Entry",
+   "no_copy": 1,
+   "options": "Fuel Card Ledger Entry",
+   "read_only": 1
   },
   {
    "allow_on_submit": 1,
@@ -365,6 +411,10 @@
    "label": "Net Profit %",
    "precision": "4",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_efwo",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
@@ -380,7 +430,7 @@
    "link_fieldname": "custom_trip_simulation"
   }
  ],
- "modified": "2026-06-04 13:30:01.257728",
+ "modified": "2026-08-01 11:06:03.366178",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Trip Simulation",

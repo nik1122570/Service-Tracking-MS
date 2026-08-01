@@ -8,6 +8,9 @@ from frappe.utils import add_months, date_diff, flt, get_first_day, get_last_day
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from service_app.service_tracking.expense_labels import canonical_expense_label, normalize_expense_name
+from service_app.service_tracking.doctype.fuel_card_ledger_entry.fuel_card_ledger_entry import (
+	create_fuel_card_ledger_entry,
+)
 
 TRIP_SETTINGS_DEFAULTS = {
 	"management_fee_percentage": 3,
@@ -43,10 +46,62 @@ class TripSimulation(Document):
 
 		self.validate_targeted_net_profit()
 
+	def on_submit(self):
+		self.create_fuel_card_trip_usage_entry()
+
+	def on_cancel(self):
+		self.reverse_fuel_card_trip_usage_entry()
+
 	def set_fuel_price_from_last_purchase_price(self):
 		fuel_price_details = get_last_fuel_purchase_price(self.fuel_item)
 		if flt(fuel_price_details.get("rate")):
 			self.fuel_price = flt(fuel_price_details.get("rate"))
+
+	def create_fuel_card_trip_usage_entry(self):
+		if not self.fuel_card or flt(self.total_fuel_consumption_qty_ratio) <= 0:
+			return
+
+		if flt(self.fuel_price) <= 0:
+			frappe.throw(
+				_(
+					"Fuel Price is required before deducting from Fuel Card. "
+					"Please make sure the Fuel Item has a purchase price or recharge/issue the Fuel Card with a valid rate."
+				)
+			)
+
+		if self.fuel_card_ledger_entry:
+			return
+
+		ledger_entry = create_fuel_card_ledger_entry(
+			fuel_card=self.fuel_card,
+			transaction_type="Trip Usage",
+			litres_out=self.total_fuel_consumption_qty_ratio,
+			rate=self.fuel_price,
+			reference_doctype=self.doctype,
+			reference_name=self.name,
+			posting_date=self.transaction_date,
+			vehicle=self.vehicle,
+			driver=self.driver,
+			remarks=_("Fuel used by Trip Simulation {0}").format(self.name),
+		)
+		self.db_set("fuel_card_ledger_entry", ledger_entry.name, update_modified=False)
+
+	def reverse_fuel_card_trip_usage_entry(self):
+		if not self.fuel_card or flt(self.total_fuel_consumption_qty_ratio) <= 0:
+			return
+
+		create_fuel_card_ledger_entry(
+			fuel_card=self.fuel_card,
+			transaction_type="Cancellation",
+			litres_in=self.total_fuel_consumption_qty_ratio,
+			rate=self.fuel_price,
+			reference_doctype=self.doctype,
+			reference_name=self.name,
+			posting_date=self.transaction_date,
+			vehicle=self.vehicle,
+			driver=self.driver,
+			remarks=_("Cancellation of Trip Simulation {0} fuel usage").format(self.name),
+		)
 
 	def calculate_days_in_trip(self):
 		if not self.departure_date or not self.return_date:
