@@ -43,6 +43,8 @@ class SimulationRoutes(Document):
 			if canonical_expense in default_expenses:
 				row.currency = default_expenses[canonical_expense].get("currency")
 				row.amount = default_expenses[canonical_expense].get("amount")
+			else:
+				ensure_fixed_expense_row_defaults(row)
 
 		self.fixed_expenses = unique_rows
 		for expense in STANDARD_FIXED_EXPENSES:
@@ -87,7 +89,7 @@ def get_default_fixed_expense_row(expense):
 
 	return {
 		"expense": expense,
-		"currency": defaults.get("currency"),
+		"currency": defaults.get("currency") or get_default_currency(),
 		"amount": (
 			0
 			if (
@@ -97,6 +99,32 @@ def get_default_fixed_expense_row(expense):
 			else flt(defaults.get("fixed_value"))
 		),
 	}
+
+
+def ensure_fixed_expense_row_defaults(row):
+	if not row.expense:
+		return
+
+	defaults = frappe.db.get_value(
+		"Fixed Expenses",
+		row.expense,
+		["currency", "fixed_value"],
+		as_dict=True,
+	) or {}
+
+	if not row.currency:
+		row.currency = defaults.get("currency") or get_default_currency()
+	if row.amount in (None, ""):
+		row.amount = flt(defaults.get("fixed_value"))
+
+
+def get_default_currency():
+	company = frappe.defaults.get_user_default("Company")
+	return (
+		frappe.db.get_single_value("Global Defaults", "default_currency")
+		or (frappe.db.get_value("Company", company, "default_currency") if company else None)
+		or frappe.db.get_value("Company", {}, "default_currency")
+	)
 
 
 @frappe.whitelist()
