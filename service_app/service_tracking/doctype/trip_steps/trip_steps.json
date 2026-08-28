@@ -41,7 +41,7 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Fuel Ratio (Ltr/KM)",
-   "read_only": 1
+   "non_negative": 1
   },
   {
    "fieldname": "fuel_consumption_qty",

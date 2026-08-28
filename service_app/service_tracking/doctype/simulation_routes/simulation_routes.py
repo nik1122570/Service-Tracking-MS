@@ -56,8 +56,18 @@ class SimulationRoutes(Document):
 			existing_expenses[expense_key] = self.fixed_expenses[-1]
 
 	def calculate_route_totals(self):
-		self.total_distance = sum(flt(row.distance) for row in self.trip_steps)
-		self.total_fuel_consumption_qty = 0
+		total_distance = 0
+		total_fuel_consumption_qty = 0
+
+		for row in self.trip_steps:
+			row.fuel_load_status = row.fuel_load_status or "Loaded"
+			row.fuel_consumption_ratio = flt(row.fuel_consumption_ratio)
+			row.fuel_consumption_qty = flt(row.distance) * row.fuel_consumption_ratio
+			total_distance += flt(row.distance)
+			total_fuel_consumption_qty += flt(row.fuel_consumption_qty)
+
+		self.total_distance = total_distance
+		self.total_fuel_consumption_qty = total_fuel_consumption_qty
 
 	def validate_duplicate_fixed_expenses(self):
 		seen_expenses = set()

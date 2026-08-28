@@ -15,7 +15,7 @@ frappe.ui.form.on("Trip Steps", {
 		}
 	},
 
-	fuel_consumption_qty(frm) {
+	fuel_consumption_ratio(frm) {
 		if (frm.doctype === "Simulation Routes") {
 			calculate_route_totals(frm);
 		}
@@ -53,12 +53,24 @@ frappe.ui.form.on("Fixed Expenses Table", {
 });
 
 function calculate_route_totals(frm) {
+	let changed = false;
 	const total_distance = (frm.doc.trip_steps || []).reduce((total, row) => {
+		const fuel_consumption_qty = flt(row.distance) * flt(row.fuel_consumption_ratio);
+		if (flt(row.fuel_consumption_qty) !== flt(fuel_consumption_qty)) {
+			row.fuel_consumption_qty = fuel_consumption_qty;
+			changed = true;
+		}
 		return total + flt(row.distance);
+	}, 0);
+	const total_fuel_consumption_qty = (frm.doc.trip_steps || []).reduce((total, row) => {
+		return total + flt(row.fuel_consumption_qty);
 	}, 0);
 
 	set_value_if_changed(frm, "total_distance", total_distance);
-	set_value_if_changed(frm, "total_fuel_consumption_qty", 0);
+	set_value_if_changed(frm, "total_fuel_consumption_qty", total_fuel_consumption_qty);
+	if (changed) {
+		frm.refresh_field("trip_steps");
+	}
 }
 
 function ensure_permanent_fixed_expenses(frm) {

@@ -7,7 +7,6 @@ frappe.ui.form.on("Trip Simulation", {
 		frm._trip_settings = get_default_trip_settings();
 		frm._tyre_settings = get_default_tyre_settings();
 		frm._fuel_litres_per_km = 0;
-		frm._fuel_litres_per_km_settings = get_default_fuel_litres_per_km_settings();
 		frm._maintenance_details = get_default_maintenance_details();
 		load_trip_settings(frm);
 	},
@@ -83,10 +82,6 @@ frappe.ui.form.on("Trip Simulation", {
 				const route_details = response.message || {};
 				frm._tyre_settings = Object.assign(get_default_tyre_settings(), route_details.tyre_settings || {});
 				frm._fuel_litres_per_km = flt(route_details.fuel_litres_per_km);
-				frm._fuel_litres_per_km_settings = Object.assign(
-					get_default_fuel_litres_per_km_settings(),
-					route_details.fuel_litres_per_km_settings || {}
-				);
 				frm._maintenance_details = Object.assign(get_default_maintenance_details(), route_details.maintenance_details || {});
 				frm.clear_table("fuel");
 				frm.clear_table("trip_expenses_outline");
@@ -179,6 +174,11 @@ frappe.ui.form.on("Trip Simulation", {
 function apply_fuel_tab_layout_styles(frm) {
 	const fuel_grid = frm.get_field("fuel")?.grid;
 	if (fuel_grid?.wrapper) {
+		if (fuel_grid.update_docfield_property) {
+			fuel_grid.update_docfield_property("fuel_load_status", "read_only", 1);
+			fuel_grid.update_docfield_property("fuel_consumption_ratio", "read_only", 1);
+			fuel_grid.update_docfield_property("fuel_consumption_qty", "read_only", 1);
+		}
 		fuel_grid.wrapper.find(".grid-heading-row, .grid-row").css("min-width", "760px");
 		fuel_grid.wrapper.find(".grid-body").css("overflow-x", "auto");
 	}
@@ -201,6 +201,13 @@ frappe.ui.form.on("Trip Steps", {
 	},
 
 	fuel_load_status(frm) {
+		if (frm.doctype === "Trip Simulation") {
+			apply_calculated_fuel_consumption(frm);
+			calculate_totals(frm);
+		}
+	},
+
+	fuel_consumption_ratio(frm) {
 		if (frm.doctype === "Trip Simulation") {
 			apply_calculated_fuel_consumption(frm);
 			calculate_totals(frm);
@@ -875,11 +882,7 @@ function get_default_trip_settings() {
 		light_truck_number_of_tyres: 0,
 		light_truck_tyre_lifecycle_km: 0,
 		heavy_truck_litres_per_km: 0,
-		heavy_truck_loaded_litres_per_km: 0,
-		heavy_truck_empty_litres_per_km: 0,
 		light_truck_litres_per_km: 0,
-		light_truck_loaded_litres_per_km: 0,
-		light_truck_empty_litres_per_km: 0,
 	};
 }
 
@@ -941,25 +944,8 @@ function get_maintenance_reference_date(frm) {
 	return frm.doc.departure_date || frm.doc.transaction_date || frappe.datetime.get_today();
 }
 
-function get_default_fuel_litres_per_km_settings() {
-	return {
-		litres_per_km: 0,
-		loaded_litres_per_km: 0,
-		empty_litres_per_km: 0,
-	};
-}
-
-function get_fuel_litres_per_km(frm, fuel_load_status = "Loaded") {
-	const settings = Object.assign(
-		get_default_fuel_litres_per_km_settings(),
-		frm._fuel_litres_per_km_settings || {}
-	);
-	const fallback = flt(settings.litres_per_km) || flt(frm._fuel_litres_per_km);
-	if (normalize_expense_name(fuel_load_status) === "empty") {
-		return flt(settings.empty_litres_per_km) || fallback;
-	}
-
-	return flt(settings.loaded_litres_per_km) || fallback;
+function get_fuel_litres_per_km(frm) {
+	return flt(frm._fuel_litres_per_km);
 }
 
 function get_fuel_consumption_qty(distance, fuel_litres_per_km) {
@@ -974,7 +960,7 @@ function apply_calculated_fuel_consumption(frm) {
 	let changed = false;
 	(frm.doc.fuel || []).forEach((row) => {
 		const fuel_load_status = row.fuel_load_status || "Loaded";
-		const fuel_consumption_ratio = get_fuel_litres_per_km(frm, fuel_load_status);
+		const fuel_consumption_ratio = flt(row.fuel_consumption_ratio) || get_fuel_litres_per_km(frm);
 		const fuel_consumption_qty = get_fuel_consumption_qty(row.distance, fuel_consumption_ratio);
 		changed = update_row_if_changed(row, {
 			fuel_load_status,
@@ -1114,7 +1100,6 @@ function load_fuel_litres_per_km_from_truck_type(frm, options = {}) {
 
 	if (!frm.doc.vehicle) {
 		frm._fuel_litres_per_km = 0;
-		frm._fuel_litres_per_km_settings = get_default_fuel_litres_per_km_settings();
 		if (recalculate && should_recalculate(frm)) {
 			apply_calculated_fuel_consumption(frm);
 			calculate_totals(frm);
@@ -1123,17 +1108,12 @@ function load_fuel_litres_per_km_from_truck_type(frm, options = {}) {
 	}
 
 	frappe.call({
-		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_fuel_litres_per_km_settings_from_truck_type",
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_fuel_litres_per_km_from_truck_type",
 		args: {
 			vehicle: frm.doc.vehicle,
 		},
 		callback(response) {
-			frm._fuel_litres_per_km_settings = Object.assign(
-				get_default_fuel_litres_per_km_settings(),
-				response.message || {}
-			);
-			frm._fuel_litres_per_km = flt(frm._fuel_litres_per_km_settings.loaded_litres_per_km)
-				|| flt(frm._fuel_litres_per_km_settings.litres_per_km);
+			frm._fuel_litres_per_km = flt(response.message);
 			if (recalculate && should_recalculate(frm)) {
 				apply_calculated_fuel_consumption(frm);
 				calculate_totals(frm);

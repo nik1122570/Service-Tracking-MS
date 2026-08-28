@@ -15,8 +15,9 @@ TRIP_STEP_FUEL_FIELDS = (
 		"fieldname": "fuel_consumption_ratio",
 		"fieldtype": "Float",
 		"label": "Fuel Ratio (Ltr/KM)",
-		"read_only": 1,
+		"read_only": 0,
 		"in_list_view": 1,
+		"non_negative": 1,
 		"idx": 5,
 	},
 )
