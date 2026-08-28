@@ -21,7 +21,11 @@
   "light_truck_tyre_lifecycle_km",
   "fuel_consumption_section",
   "heavy_truck_litres_per_km",
-  "light_truck_litres_per_km"
+  "heavy_truck_loaded_litres_per_km",
+  "heavy_truck_empty_litres_per_km",
+  "light_truck_litres_per_km",
+  "light_truck_loaded_litres_per_km",
+  "light_truck_empty_litres_per_km"
  ],
  "fields": [
   {
@@ -132,7 +136,7 @@
   },
   {
    "default": "0",
-   "description": "Litres consumed per kilometer for Heavy Trucks. Used by Trip Simulation fuel quantity formula.",
+   "description": "Legacy fallback litres consumed per kilometer for Heavy Trucks. Used when loaded/empty ratios are not set.",
    "fieldname": "heavy_truck_litres_per_km",
    "fieldtype": "Float",
    "label": "Heavy Truck Litres per KM",
@@ -140,10 +144,42 @@
   },
   {
    "default": "0",
-   "description": "Litres consumed per kilometer for Light Trucks. Used by Trip Simulation fuel quantity formula.",
+   "description": "Litres consumed per kilometer when a Heavy Truck is loaded. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "heavy_truck_loaded_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Heavy Truck Loaded Litres per KM",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Litres consumed per kilometer when a Heavy Truck is empty. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "heavy_truck_empty_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Heavy Truck Empty Litres per KM",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Legacy fallback litres consumed per kilometer for Light Trucks. Used when loaded/empty ratios are not set.",
    "fieldname": "light_truck_litres_per_km",
    "fieldtype": "Float",
    "label": "Light Truck Litres per KM",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Litres consumed per kilometer when a Light Truck is loaded. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "light_truck_loaded_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Light Truck Loaded Litres per KM",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Litres consumed per kilometer when a Light Truck is empty. Used by Trip Simulation fuel quantity formula.",
+   "fieldname": "light_truck_empty_litres_per_km",
+   "fieldtype": "Float",
+   "label": "Light Truck Empty Litres per KM",
    "non_negative": 1
   }
  ],

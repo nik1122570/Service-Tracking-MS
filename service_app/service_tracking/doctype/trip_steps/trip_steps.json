@@ -9,6 +9,8 @@
   "location",
   "unloading_location",
   "distance",
+  "fuel_load_status",
+  "fuel_consumption_ratio",
   "fuel_consumption_qty"
  ],
  "fields": [
@@ -25,6 +27,21 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Distance in Kilometers"
+  },
+  {
+   "default": "Loaded",
+   "fieldname": "fuel_load_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Fuel Load Status",
+   "options": "Loaded\nEmpty"
+  },
+  {
+   "fieldname": "fuel_consumption_ratio",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Fuel Ratio (Ltr/KM)",
+   "read_only": 1
   },
   {
    "fieldname": "fuel_consumption_qty",

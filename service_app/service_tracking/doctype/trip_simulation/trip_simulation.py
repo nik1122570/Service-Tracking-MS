@@ -25,7 +25,11 @@ TRIP_SETTINGS_DEFAULTS = {
 	"light_truck_number_of_tyres": 0,
 	"light_truck_tyre_lifecycle_km": 0,
 	"heavy_truck_litres_per_km": 0,
+	"heavy_truck_loaded_litres_per_km": 0,
+	"heavy_truck_empty_litres_per_km": 0,
 	"light_truck_litres_per_km": 0,
+	"light_truck_loaded_litres_per_km": 0,
+	"light_truck_empty_litres_per_km": 0,
 }
 
 PURCHASE_ORDER_JOB_CARD_LINK_FIELDS = ("custom_job_card_link", "eah_job_card", "job_card_link")
@@ -318,9 +322,16 @@ class TripSimulation(Document):
 		)
 
 	def apply_calculated_fuel_consumption(self):
-		fuel_litres_per_km = get_fuel_litres_per_km_from_truck_type(self.vehicle)
 		for row in self.fuel:
-			row.fuel_consumption_qty = get_fuel_consumption_qty(row.distance, fuel_litres_per_km)
+			row.fuel_load_status = row.fuel_load_status or "Loaded"
+			row.fuel_consumption_ratio = get_fuel_litres_per_km_from_truck_type(
+				self.vehicle,
+				row.fuel_load_status,
+			)
+			row.fuel_consumption_qty = get_fuel_consumption_qty(
+				row.distance,
+				row.fuel_consumption_ratio,
+			)
 
 	def validate_targeted_net_profit(self):
 		if flt(self.net_profit_) >= flt(self.targeted_net_profit):
@@ -383,6 +394,7 @@ def get_route_details(
 			"total_distance": 0,
 			"total_fuel_consumption_qty": 0,
 			"fuel_litres_per_km": get_fuel_litres_per_km_from_truck_type(vehicle),
+			"fuel_litres_per_km_settings": get_fuel_litres_per_km_settings_from_truck_type(vehicle),
 			"maintenance_details": get_previous_month_maintenance_cost_details(
 				vehicle,
 				maintenance_reference_date,
@@ -394,14 +406,21 @@ def get_route_details(
 	fixed_expenses = []
 
 	for row in route_doc.trip_steps:
+		fuel_load_status = row.fuel_load_status or "Loaded"
+		fuel_consumption_ratio = get_fuel_litres_per_km_from_truck_type(
+			vehicle,
+			fuel_load_status,
+		)
 		trip_steps.append(
 			{
 				"location": row.location,
 				"unloading_location": row.unloading_location,
 				"distance": flt(row.distance),
+				"fuel_load_status": fuel_load_status,
+				"fuel_consumption_ratio": fuel_consumption_ratio,
 				"fuel_consumption_qty": get_fuel_consumption_qty(
 					row.distance,
-					get_fuel_litres_per_km_from_truck_type(vehicle),
+					fuel_consumption_ratio,
 				),
 			}
 		)
@@ -516,6 +535,7 @@ def get_route_details(
 		"total_fuel_consumption_qty": total_fuel_consumption_qty,
 		"tyre_settings": tyre_settings,
 		"fuel_litres_per_km": fuel_litres_per_km,
+		"fuel_litres_per_km_settings": get_fuel_litres_per_km_settings_from_truck_type(vehicle),
 		"maintenance_details": maintenance_details,
 	}
 
@@ -958,19 +978,45 @@ def get_tyre_settings_from_truck_type(vehicle):
 
 
 @frappe.whitelist()
-def get_fuel_litres_per_km_from_truck_type(vehicle):
+def get_fuel_litres_per_km_from_truck_type(vehicle, fuel_load_status=None):
+	settings = get_fuel_litres_per_km_settings_from_truck_type(vehicle)
+	status = normalize_expense_name(fuel_load_status or "Loaded")
+	if status == "empty":
+		return settings.get("empty_litres_per_km") or settings.get("litres_per_km") or 0
+
+	return settings.get("loaded_litres_per_km") or settings.get("litres_per_km") or 0
+
+
+@frappe.whitelist()
+def get_fuel_litres_per_km_settings_from_truck_type(vehicle):
 	truck_type = get_vehicle_truck_type(vehicle)
 	if not truck_type:
-		return 0
+		return {
+			"litres_per_km": 0,
+			"loaded_litres_per_km": 0,
+			"empty_litres_per_km": 0,
+		}
 
 	truck_type_key = normalize_expense_name(truck_type)
 	settings = get_trip_settings()
 	if truck_type_key == "heavy truck":
-		return get_trip_setting_value(settings, "heavy_truck_litres_per_km")
+		return {
+			"litres_per_km": get_trip_setting_value(settings, "heavy_truck_litres_per_km"),
+			"loaded_litres_per_km": get_trip_setting_value(settings, "heavy_truck_loaded_litres_per_km"),
+			"empty_litres_per_km": get_trip_setting_value(settings, "heavy_truck_empty_litres_per_km"),
+		}
 	if truck_type_key == "light truck":
-		return get_trip_setting_value(settings, "light_truck_litres_per_km")
+		return {
+			"litres_per_km": get_trip_setting_value(settings, "light_truck_litres_per_km"),
+			"loaded_litres_per_km": get_trip_setting_value(settings, "light_truck_loaded_litres_per_km"),
+			"empty_litres_per_km": get_trip_setting_value(settings, "light_truck_empty_litres_per_km"),
+		}
 
-	return 0
+	return {
+		"litres_per_km": 0,
+		"loaded_litres_per_km": 0,
+		"empty_litres_per_km": 0,
+	}
 
 
 @frappe.whitelist()
@@ -989,8 +1035,9 @@ def get_vehicle_truck_type(vehicle):
 		if df.options == "Truck Type" or normalize_expense_name(df.label) == "truck type":
 			fieldnames.insert(0, df.fieldname)
 
+	existing_columns = set(get_existing_table_columns("Vehicle", fieldnames))
 	for fieldname in dict.fromkeys(fieldnames):
-		if not vehicle_meta.has_field(fieldname):
+		if not vehicle_meta.has_field(fieldname) and fieldname not in existing_columns:
 			continue
 
 		truck_type = frappe.db.get_value("Vehicle", vehicle, fieldname)
