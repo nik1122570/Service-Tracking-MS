@@ -588,16 +588,7 @@ function apply_calculated_expenses(frm) {
 		}
 
 		if (normalize_expense_name(row.expense) === "maintenance fee") {
-			const rate = get_maintenance_fee_daily_rate(frm);
-			const quantity = flt(frm.doc.days_in_trip);
-			const maintenance_details = get_maintenance_details(frm);
-			changed = update_row_if_changed(row, {
-				rate,
-				quantity,
-				previous_month_maintenance_cost: flt(maintenance_details.amount),
-				amount: flt(rate) * flt(quantity),
-				description: `${format_formula_number(maintenance_details.amount)} previous month maintenance (${maintenance_details.from_date || "N/A"} to ${maintenance_details.to_date || "N/A"}) / 30 days x ${format_formula_number(quantity)} trip days`,
-			}) || changed;
+			return;
 		} else if (normalize_expense_name(row.expense) === "management fee") {
 			const quantity = get_trip_setting_value(frm, "management_fee_percentage");
 			const rate = flt(frm.doc.expected_revenue) / 100;
@@ -765,7 +756,7 @@ function validate_row_expense(frm, row) {
 		return;
 	}
 	row.expense = canonical_expense_label(row.expense);
-	if (normalize_expense_name(row.expense) === "tyres") {
+	if (["tyres", "maintenance fee"].includes(normalize_expense_name(row.expense))) {
 		return;
 	}
 
@@ -797,7 +788,7 @@ function validate_row_amount(frm, row) {
 	}
 
 	row.expense = canonical_expense_label(row.expense);
-	if (normalize_expense_name(row.expense) === "tyres") {
+	if (["tyres", "maintenance fee"].includes(normalize_expense_name(row.expense))) {
 		return;
 	}
 
@@ -815,7 +806,7 @@ function validate_row_amount(frm, row) {
 
 function get_allowed_expense_amount(expense_limit, frm, percentage_override = null) {
 	if (normalize_expense_name(expense_limit.expense) === "maintenance fee") {
-		return get_maintenance_fee_daily_rate(frm) * flt(frm.doc.days_in_trip);
+		return flt(expense_limit.amount);
 	}
 	if (normalize_expense_name(expense_limit.expense) === "management fee") {
 		return flt(frm.doc.expected_revenue) * get_trip_setting_value(frm, "management_fee_percentage") / 100;

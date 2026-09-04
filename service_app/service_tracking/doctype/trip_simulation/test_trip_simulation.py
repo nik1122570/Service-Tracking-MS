@@ -1,11 +1,9 @@
 # Copyright (c) 2026, Nickson  and Contributors
 # See license.txt
 
-import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from service_app.service_tracking.doctype.trip_simulation.trip_simulation import (
-	TripSimulation,
 	get_allowed_expense_amount,
 	get_net_profit_margin_percentage,
 	get_tyre_cost_per_km,
@@ -33,15 +31,3 @@ class TestTripSimulation(FrappeTestCase):
 	def test_tyre_cost_per_km(self):
 		self.assertEqual(get_tyre_cost_per_km(200000, 10, 50000), 40)
 		self.assertEqual(get_tyre_cost_per_km(200000, 10, 0), 0)
-
-	def test_targeted_net_profit_blocks_lower_net_profit_margin(self):
-		doc = TripSimulation(
-			{
-				"doctype": "Trip Simulation",
-				"net_profit_": 19,
-				"targeted_net_profit": 20,
-			}
-		)
-
-		with self.assertRaises(frappe.ValidationError):
-			doc.validate_targeted_net_profit()

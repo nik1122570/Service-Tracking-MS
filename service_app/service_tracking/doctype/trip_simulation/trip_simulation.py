@@ -45,8 +45,6 @@ class TripSimulation(Document):
 			self.validate_trip_expenses()
 			self.calculate_totals()
 
-		self.validate_targeted_net_profit()
-
 	def on_submit(self):
 		self.create_fuel_card_trip_usage_entry()
 
@@ -148,7 +146,8 @@ class TripSimulation(Document):
 				continue
 
 			row.expense = canonical_expense_label(row.expense)
-			if normalize_expense_name(row.expense) == "tyres":
+			expense_key = normalize_expense_name(row.expense)
+			if expense_key in ("tyres", "maintenance fee"):
 				continue
 
 			if row.expense not in route_expense_limits:
@@ -198,7 +197,8 @@ class TripSimulation(Document):
 				continue
 
 			row.expense = canonical_expense_label(row.expense)
-			if normalize_expense_name(row.expense) == "tyres":
+			expense_key = normalize_expense_name(row.expense)
+			if expense_key == "tyres":
 				row.rate = get_tyre_cost_per_km(
 					tyre_settings.get("tyre_price"),
 					tyre_settings.get("number_of_tyres"),
@@ -215,25 +215,14 @@ class TripSimulation(Document):
 				)
 				continue
 
+			if expense_key == "maintenance fee":
+				continue
+
 			if row.expense not in route_expense_limits:
 				continue
 
 			expense_limit = route_expense_limits[row.expense]
-			if normalize_expense_name(row.expense) == "maintenance fee":
-				maintenance_details = get_previous_month_maintenance_cost_details(
-					self.vehicle,
-					self.departure_date or self.transaction_date,
-				)
-				row.rate = get_maintenance_fee_daily_rate(maintenance_details.get("amount"))
-				row.quantity = self.days_in_trip or 0
-				row.previous_month_maintenance_cost = flt(maintenance_details.get("amount"))
-				row.amount = flt(row.rate) * flt(row.quantity)
-				row.description = (
-					f"{format_formula_number(maintenance_details.get('amount'))} previous month maintenance "
-					f"({maintenance_details.get('from_date') or 'N/A'} to {maintenance_details.get('to_date') or 'N/A'}) / 30 days "
-					f"x {format_formula_number(row.quantity)} trip days"
-				)
-			elif normalize_expense_name(row.expense) == "management fee":
+			if normalize_expense_name(row.expense) == "management fee":
 				row.quantity = get_trip_setting_value(trip_settings, "management_fee_percentage")
 				row.rate = flt(self.expected_revenue) / 100
 				row.previous_month_maintenance_cost = 0
@@ -328,18 +317,6 @@ class TripSimulation(Document):
 				row.distance,
 				row.fuel_consumption_ratio,
 			)
-
-	def validate_targeted_net_profit(self):
-		if flt(self.net_profit_) >= flt(self.targeted_net_profit):
-			return
-
-		frappe.throw(
-			_("Net Profit Margin {0} cannot be below the Targeted Net Profit {1}.").format(
-				frappe.bold(frappe.format_value(self.net_profit_, {"fieldtype": "Percent"})),
-				frappe.bold(frappe.format_value(self.targeted_net_profit, {"fieldtype": "Percent"})),
-			),
-			title=_("Targeted Net Profit Not Met"),
-		)
 
 	def load_route_details(self):
 		route_details = get_route_details(
@@ -460,15 +437,8 @@ def get_route_details(
 				f"{format_formula_number(quantity)} km"
 			)
 		elif expense_key == "maintenance fee":
-			rate = get_maintenance_fee_daily_rate(maintenance_details.get("amount"))
-			quantity = flt(days_in_trip)
-			amount = rate * quantity
 			previous_month_maintenance_cost = flt(maintenance_details.get("amount"))
-			description = (
-				f"{format_formula_number(maintenance_details.get('amount'))} previous month maintenance "
-				f"({maintenance_details.get('from_date') or 'N/A'} to {maintenance_details.get('to_date') or 'N/A'}) / 30 days "
-				f"x {format_formula_number(quantity)} trip days"
-			)
+			description = "Enter maintenance fee manually"
 		elif expense_key == "management fee":
 			quantity = get_trip_setting_value(trip_settings, "management_fee_percentage")
 			rate = flt(expected_revenue) / 100
@@ -1192,11 +1162,7 @@ def get_allowed_expense_amount(
 	maintenance_reference_date=None,
 ):
 	if normalize_expense_name(expense_limit.get("expense")) == "maintenance fee":
-		maintenance_details = get_previous_month_maintenance_cost_details(
-			vehicle,
-			maintenance_reference_date,
-		)
-		return get_maintenance_fee_daily_rate(maintenance_details.get("amount")) * flt(days_in_trip)
+		return flt(expense_limit.get("amount"))
 	if normalize_expense_name(expense_limit.get("expense")) == "management fee":
 		return flt(expected_revenue) * get_trip_setting_value(
 			get_trip_settings(),
