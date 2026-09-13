@@ -30,16 +30,17 @@
   "fuel_costs_section",
   "fuel_card",
   "fuel_card_status_dashboard",
-  "fuel_supplier",
-  "fuel_item",
   "fuel_details_section",
   "fuel",
   "fuel_summary_section",
   "total_fuel_consumption_qty_ratio",
   "total_distance_km",
+  "fuel_item",
   "column_break_efwo",
   "fuel_price",
+  "price_list",
   "total_fuel_costs",
+  "fuel_supplier",
   "fuel_references_section",
   "create_fuel_purchase_order",
   "fuel_card_ledger_entry",
@@ -140,6 +141,7 @@
   {
    "fieldname": "fuel_costs_section",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Fuel Card and Availability"
   },
   {
@@ -415,6 +417,12 @@
   {
    "fieldname": "column_break_efwo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List"
   }
  ],
  "grid_page_length": 50,
@@ -430,7 +438,7 @@
    "link_fieldname": "custom_trip_simulation"
   }
  ],
- "modified": "2026-08-01 11:06:03.366178",
+ "modified": "2026-09-13 16:27:34.068560",
  "modified_by": "Administrator",
  "module": "Service Tracking",
  "name": "Trip Simulation",

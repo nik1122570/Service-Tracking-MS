@@ -34,7 +34,7 @@ PURCHASE_ORDER_JOB_CARD_LINK_FIELDS = ("custom_job_card_link", "eah_job_card", "
 class TripSimulation(Document):
 	def validate(self):
 		self.calculate_days_in_trip()
-		self.set_fuel_price_from_last_purchase_price()
+		self.set_fuel_price_from_item_price()
 
 		if self.route and (
 			self.has_value_changed("route") or (not self.fuel and not self.trip_expenses_outline)
@@ -51,10 +51,9 @@ class TripSimulation(Document):
 	def on_cancel(self):
 		self.reverse_fuel_card_trip_usage_entry()
 
-	def set_fuel_price_from_last_purchase_price(self):
-		fuel_price_details = get_last_fuel_purchase_price(self.fuel_item)
-		if flt(fuel_price_details.get("rate")):
-			self.fuel_price = flt(fuel_price_details.get("rate"))
+	def set_fuel_price_from_item_price(self):
+		fuel_price_details = get_fuel_item_price(self.fuel_item, self.price_list)
+		self.fuel_price = flt(fuel_price_details.get("rate"))
 
 	def create_fuel_card_trip_usage_entry(self):
 		if not self.fuel_card or flt(self.total_fuel_consumption_qty_ratio) <= 0:
@@ -308,9 +307,9 @@ class TripSimulation(Document):
 
 	def apply_calculated_fuel_consumption(self):
 		for row in self.fuel:
-			row.fuel_load_status = row.fuel_load_status or "Loaded"
+			row.fuel_load_status = row.get("fuel_load_status") or "Loaded"
 			row.fuel_consumption_ratio = flt(
-				row.fuel_consumption_ratio
+				row.get("fuel_consumption_ratio")
 				or get_fuel_litres_per_km_from_truck_type(self.vehicle)
 			)
 			row.fuel_consumption_qty = get_fuel_consumption_qty(
@@ -378,9 +377,9 @@ def get_route_details(
 	fixed_expenses = []
 
 	for row in route_doc.trip_steps:
-		fuel_load_status = row.fuel_load_status or "Loaded"
+		fuel_load_status = row.get("fuel_load_status") or "Loaded"
 		fuel_consumption_ratio = flt(
-			row.fuel_consumption_ratio
+			row.get("fuel_consumption_ratio")
 			or get_fuel_litres_per_km_from_truck_type(vehicle)
 		)
 		trip_steps.append(
@@ -996,78 +995,20 @@ def get_fuel_consumption_qty(distance, fuel_litres_per_km):
 
 
 @frappe.whitelist()
-def get_last_fuel_purchase_price(fuel_item):
-	if not fuel_item:
-		return {
-			"rate": 0,
-			"source_doctype": None,
-			"source_name": None,
-			"posting_date": None,
-			"supplier": None,
-		}
+def get_fuel_item_price(fuel_item, price_list):
+	"""Return the configured Item Price for a fuel item and price list."""
+	if not fuel_item or not price_list:
+		return {"rate": 0, "source_name": None}
 
-	purchase_invoice_rate = frappe.db.sql(
-		"""
-		SELECT
-			COALESCE(NULLIF(pii.base_net_rate, 0), NULLIF(pii.net_rate, 0), pii.rate, 0) AS rate,
-			pi.name AS source_name,
-			pi.posting_date,
-			pi.supplier
-		FROM `tabPurchase Invoice Item` pii
-		INNER JOIN `tabPurchase Invoice` pi
-			ON pi.name = pii.parent
-		WHERE pi.docstatus = 1
-		  AND pii.parenttype = 'Purchase Invoice'
-		  AND pii.item_code = %(fuel_item)s
-		ORDER BY pi.posting_date DESC, pi.creation DESC, pii.idx DESC
-		LIMIT 1
-		""",
-		{"fuel_item": fuel_item},
+	item_price = frappe.db.get_value(
+		"Item Price",
+		{"item_code": fuel_item, "price_list": price_list},
+		["name", "price_list_rate"],
 		as_dict=True,
 	)
-	if purchase_invoice_rate:
-		return {
-			"rate": flt(purchase_invoice_rate[0].rate),
-			"source_doctype": "Purchase Invoice",
-			"source_name": purchase_invoice_rate[0].source_name,
-			"posting_date": purchase_invoice_rate[0].posting_date,
-			"supplier": purchase_invoice_rate[0].supplier,
-		}
-
-	purchase_order_rate = frappe.db.sql(
-		"""
-		SELECT
-			COALESCE(NULLIF(poi.base_net_rate, 0), NULLIF(poi.net_rate, 0), poi.rate, 0) AS rate,
-			po.name AS source_name,
-			po.transaction_date AS posting_date,
-			po.supplier
-		FROM `tabPurchase Order Item` poi
-		INNER JOIN `tabPurchase Order` po
-			ON po.name = poi.parent
-		WHERE po.docstatus = 1
-		  AND poi.parenttype = 'Purchase Order'
-		  AND poi.item_code = %(fuel_item)s
-		ORDER BY po.transaction_date DESC, po.creation DESC, poi.idx DESC
-		LIMIT 1
-		""",
-		{"fuel_item": fuel_item},
-		as_dict=True,
-	)
-	if purchase_order_rate:
-		return {
-			"rate": flt(purchase_order_rate[0].rate),
-			"source_doctype": "Purchase Order",
-			"source_name": purchase_order_rate[0].source_name,
-			"posting_date": purchase_order_rate[0].posting_date,
-			"supplier": purchase_order_rate[0].supplier,
-		}
-
 	return {
-		"rate": 0,
-		"source_doctype": None,
-		"source_name": None,
-		"posting_date": None,
-		"supplier": None,
+		"rate": flt(item_price.price_list_rate) if item_price else 0,
+		"source_name": item_price.name if item_price else None,
 	}
 
 

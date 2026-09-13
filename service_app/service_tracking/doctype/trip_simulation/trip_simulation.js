@@ -32,7 +32,7 @@ frappe.ui.form.on("Trip Simulation", {
 			load_tyre_settings_from_truck_type(frm);
 			load_fuel_litres_per_km_from_truck_type(frm);
 			load_previous_month_maintenance_cost(frm);
-			load_last_fuel_purchase_price(frm);
+			load_fuel_item_price(frm);
 			release_refresh_guard(frm);
 			return;
 		}
@@ -42,7 +42,7 @@ frappe.ui.form.on("Trip Simulation", {
 		load_tyre_settings_from_truck_type(frm, { recalculate: false });
 		load_fuel_litres_per_km_from_truck_type(frm, { recalculate: false });
 		load_previous_month_maintenance_cost(frm, { recalculate: false });
-		load_last_fuel_purchase_price(frm, { recalculate: false });
+		load_fuel_item_price(frm, { recalculate: false });
 		release_refresh_guard(frm);
 	},
 
@@ -146,7 +146,11 @@ frappe.ui.form.on("Trip Simulation", {
 	},
 
 	fuel_item(frm) {
-		load_last_fuel_purchase_price(frm);
+		load_fuel_item_price(frm);
+	},
+
+	price_list(frm) {
+		load_fuel_item_price(frm);
 	},
 
 	create_fuel_purchase_order(frm) {
@@ -1144,13 +1148,13 @@ function load_previous_month_maintenance_cost(frm, options = {}) {
 	});
 }
 
-function load_last_fuel_purchase_price(frm, options = {}) {
+function load_fuel_item_price(frm, options = {}) {
 	const recalculate = options.recalculate !== false;
 	if (recalculate && !should_recalculate(frm)) {
 		return;
 	}
 
-	if (!frm.doc.fuel_item) {
+	if (!frm.doc.fuel_item || !frm.doc.price_list) {
 		if (recalculate && should_recalculate(frm)) {
 			set_value_if_changed(frm, "fuel_price", 0);
 			calculate_totals(frm);
@@ -1159,17 +1163,14 @@ function load_last_fuel_purchase_price(frm, options = {}) {
 	}
 
 	frappe.call({
-		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_last_fuel_purchase_price",
+		method: "service_app.service_tracking.doctype.trip_simulation.trip_simulation.get_fuel_item_price",
 		args: {
 			fuel_item: frm.doc.fuel_item,
+			price_list: frm.doc.price_list,
 		},
 		callback(response) {
 			const price_details = response.message || {};
 			const rate = flt(price_details.rate);
-			if (!rate) {
-				return;
-			}
-
 			if (recalculate && should_recalculate(frm)) {
 				set_value_if_changed(frm, "fuel_price", rate);
 				calculate_totals(frm);
